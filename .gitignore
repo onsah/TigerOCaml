@@ -1,0 +1,6 @@
+Files/
+.vscode/
+_build/
+.merlin
+*.copy
+*.txt

@@ -1,0 +1,6 @@
+(executable
+ (name tigerC))
+
+(ocamllex
+  (modules lexer)
+)
