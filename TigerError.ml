@@ -1,4 +1,5 @@
 module TigerError = struct
+  
   exception LexError of string
 
   let lexError prefix chr line pos =

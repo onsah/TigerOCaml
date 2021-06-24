@@ -1,3 +1,12 @@
+/**
+ * Auxuliary functions
+ */
+ const toSingleString = (arr: string[]): string =>
+  arr.reduce((prev, curr) => `${prev}\n${curr}`);
+
+ const camelCased = (str: string): string =>
+  `${str[0].toUpperCase()}${str.slice(1)}`;
+
 const keywords = [
   "while",
   "for",
@@ -18,13 +27,18 @@ const keywords = [
   "nil",
 ];
 
-const getKeywordTokens = () =>
-  keywords.map((kw) => {
-    const camelCased = `${kw[0].toUpperCase()}${kw.slice(1)}`;
-    return `let ${kw}Keyword (line, col) = (String.concat ("")) [ "${camelCased}: "; string_of_int line ; ","; string_of_int col ] ;;`;
-  });
+const getKeywordTypes = () =>
+  keywords.map(kw => 
+    `type ${kw}Token = ${camelCased(kw)}Token of int * int`);
 
-const keywordFns = getKeywordTokens().reduce((prev, curr) => `${prev}\n${curr}`);
+const keywordTypes = toSingleString(getKeywordTypes());
+
+const getKeywordFns = () =>
+  keywords.map((kw) =>
+    `let ${kw}Keyword (line, col) = ${camelCased(kw)}Token (line, col)`
+  );
+
+const keywordFns = getKeywordFns().reduce((prev, curr) => `${prev}\n${curr}`);
 
 const symbols = [
   [',', 'comma'], [':', 'colon'], 
@@ -36,32 +50,51 @@ const symbols = [
   ['&', 'and'], ['|', 'or'], [':=', 'assign'],
 ];
 
-const getSymbolTokens = () => 
-  symbols.map(([_, name]) => {
-    const capitalized = name.toUpperCase();
-    return `let ${name}Symbol (line, col) = (String.concat ("")) [ "${capitalized}: "; string_of_int line ; ","; string_of_int col ] ;;`;
-  });
+const getSymbolTypes = () => 
+  symbols.map(([_, name]) =>
+    `type ${name}Token = ${camelCased(name)}Token of int * int`
+  );
 
-const symbolFns = getSymbolTokens().reduce((prev, curr) => `${prev}\n${curr}`);
+const symbolTypes = toSingleString(getSymbolTypes());
+
+const getSymbolFns = () => 
+  symbols.map(([_, name]) =>
+    `let ${name}Symbol (line, col) = ${camelCased(name)}Token (line, col)`
+  );
+
+const symbolFns = getSymbolFns().reduce((prev, curr) => `${prev}\n${curr}`);
 
 const tokensPath = "../../Tokens.ml";
 
 const text = Deno.readTextFileSync(tokensPath);
 
-const [beforeKeywords, _1] = text.split("(*Start keywords*)");
-const [_2, afterKeywords] = _1.split("(*End keywords*)");
-const [ beforeSymbols, startSymbols ] = afterKeywords.split("(*Start symbols*)");
-const [_3, afterSymbols] = startSymbols.split("(*End symbols*)");
+// Type declarations
+const [ beforeKeywordTokens, startKeywordTokens ] = text.split("(*Start keyword types*)");
+const [ __1, afterSymbolTokens ] = startKeywordTokens.split("(*Start symbol types*)");
+const [ __2, afterTokens ] = afterSymbolTokens.split("(*End types*)");
+
+// generator functions
+const [beforeKeywords, _1] = afterTokens.split("(*Start keyword functions*)");
+const [_2, afterKeywords] = _1.split("(*End keyword functions*)");
+const [ beforeSymbols, startSymbols ] = afterKeywords.split("(*Start symbol functions*)");
+const [_3, afterSymbols] = startSymbols.split("(*End symbol functions*)");
 
 const result = `\
+${beforeKeywordTokens}
+(*Start keyword types*)
+${keywordTypes}
+(*Start symbol types*)
+${symbolTypes}
+(*End types*)
 ${beforeKeywords}\
-(*Start keywords*)
+(*Start keyword functions*)
 ${keywordFns}
-(*End keywords*)\
+(*End keyword functions*)\
 ${beforeSymbols}\
-(*Start symbols*)
+(*Start symbol functions*)
 ${symbolFns}
-(*End symbols*)
+(*End symbol functions*)
 ${afterSymbols}`;
 
 Deno.writeTextFileSync(tokensPath, result);
+// console.log(result)

@@ -4,3 +4,8 @@
 (ocamllex
   (modules lexer)
 )
+
+(menhir
+  (modules parser)
+  (flags -la 2)
+)

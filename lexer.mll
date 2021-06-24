@@ -1,5 +1,5 @@
 {
-  open Tokens
+  open Parser
   open TigerError
 
   exception Error of string
@@ -25,248 +25,13 @@ rule token = parse
       str_content := "";
       stringRule lexbuf
     }
-| newline
-    {
-      num_lines := !num_lines + 1;
-      num_cols := 0;
-      token lexbuf
-    }
-| formatChars
-    {
-      num_cols := !num_cols + 1;
-      token lexbuf
-    }
-| "/*"
-    {
-      num_cols := !num_cols + 2;
-      comment_level := !comment_level + 1;
-      commentRule lexbuf
-    }
-| digit+ as integer
-    {
-      num_cols := !num_cols + (String.length integer);
-      Tokens.integer (int_of_string integer, !num_lines, !num_cols)  
-    }
-(*Start keywords*)
-| "while"
-    {
-        num_cols := !num_cols + 5;
-        Tokens.whileKeyword (!num_lines, !num_cols)
-    }
-| "for"
-    {
-        num_cols := !num_cols + 3;
-        Tokens.forKeyword (!num_lines, !num_cols)
-    }
-| "to"
-    {
-        num_cols := !num_cols + 2;
-        Tokens.toKeyword (!num_lines, !num_cols)
-    }
-| "break"
-    {
-        num_cols := !num_cols + 5;
-        Tokens.breakKeyword (!num_lines, !num_cols)
-    }
-| "let"
-    {
-        num_cols := !num_cols + 3;
-        Tokens.letKeyword (!num_lines, !num_cols)
-    }
-| "in"
-    {
-        num_cols := !num_cols + 2;
-        Tokens.inKeyword (!num_lines, !num_cols)
-    }
-| "end"
-    {
-        num_cols := !num_cols + 3;
-        Tokens.endKeyword (!num_lines, !num_cols)
-    }
-| "function"
-    {
-        num_cols := !num_cols + 8;
-        Tokens.functionKeyword (!num_lines, !num_cols)
-    }
-| "var"
-    {
-        num_cols := !num_cols + 3;
-        Tokens.varKeyword (!num_lines, !num_cols)
-    }
-| "type"
-    {
-        num_cols := !num_cols + 4;
-        Tokens.typeKeyword (!num_lines, !num_cols)
-    }
-| "array"
-    {
-        num_cols := !num_cols + 5;
-        Tokens.arrayKeyword (!num_lines, !num_cols)
-    }
-| "if"
-    {
-        num_cols := !num_cols + 2;
-        Tokens.ifKeyword (!num_lines, !num_cols)
-    }
-| "then"
-    {
-        num_cols := !num_cols + 4;
-        Tokens.thenKeyword (!num_lines, !num_cols)
-    }
-| "else"
-    {
-        num_cols := !num_cols + 4;
-        Tokens.elseKeyword (!num_lines, !num_cols)
-    }
-| "do"
-    {
-        num_cols := !num_cols + 2;
-        Tokens.doKeyword (!num_lines, !num_cols)
-    }
-| "of"
-    {
-        num_cols := !num_cols + 2;
-        Tokens.ofKeyword (!num_lines, !num_cols)
-    }
-| "nil"
-    {
-        num_cols := !num_cols + 3;
-        Tokens.nilKeyword (!num_lines, !num_cols)
-    }
-(*End keywords*)
-| identifier as identifier
-    {
-      num_cols := !num_cols + (String.length identifier);
-      Tokens.identifier (identifier, !num_lines, !num_cols)
-    }
-(*Start symbols*)
-| ","
-    {
-        num_cols := !num_cols + 1;
-        Tokens.commaSymbol (!num_lines, !num_cols)
-    }
-| ":"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.colonSymbol (!num_lines, !num_cols)
-    }
-| ";"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.semicolonSymbol (!num_lines, !num_cols)
-    }
-| "("
-    {
-        num_cols := !num_cols + 1;
-        Tokens.lparenSymbol (!num_lines, !num_cols)
-    }
-| ")"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.rparenSymbol (!num_lines, !num_cols)
-    }
-| "["
-    {
-        num_cols := !num_cols + 1;
-        Tokens.lbrackSymbol (!num_lines, !num_cols)
-    }
-| "]"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.rbrackSymbol (!num_lines, !num_cols)
-    }
-| "{"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.lcurlySymbol (!num_lines, !num_cols)
-    }
-| "}"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.rcurlySymbol (!num_lines, !num_cols)
-    }
-| "."
-    {
-        num_cols := !num_cols + 1;
-        Tokens.dotSymbol (!num_lines, !num_cols)
-    }
-| "+"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.plusSymbol (!num_lines, !num_cols)
-    }
-| "-"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.minusSymbol (!num_lines, !num_cols)
-    }
-| "*"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.timesSymbol (!num_lines, !num_cols)
-    }
-| "/"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.divSymbol (!num_lines, !num_cols)
-    }
-| "="
-    {
-        num_cols := !num_cols + 1;
-        Tokens.eqSymbol (!num_lines, !num_cols)
-    }
-| "<>"
-    {
-        num_cols := !num_cols + 2;
-        Tokens.ltgtSymbol (!num_lines, !num_cols)
-    }
-| "<"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.ltSymbol (!num_lines, !num_cols)
-    }
-| "<="
-    {
-        num_cols := !num_cols + 2;
-        Tokens.lteqSymbol (!num_lines, !num_cols)
-    }
-| ">"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.gtSymbol (!num_lines, !num_cols)
-    }
-| ">="
-    {
-        num_cols := !num_cols + 2;
-        Tokens.gteqSymbol (!num_lines, !num_cols)
-    }
-| "&"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.andSymbol (!num_lines, !num_cols)
-    }
-| "|"
-    {
-        num_cols := !num_cols + 1;
-        Tokens.orSymbol (!num_lines, !num_cols)
-    }
-| ":="
-    {
-        num_cols := !num_cols + 2;
-        Tokens.assignSymbol (!num_lines, !num_cols)
-    }
-(*End symbols*)
 | eof
-    { "EOF" }
-| _ as chr
-    {
-      TigerError.lexError "unexpected character" (Some chr) !num_lines !num_cols
-    }
+    { EOF }
 and stringRule = parse 
 | '"'
     {
       num_cols := !num_cols + 1;
-      Tokens.string (!str_content, !num_lines, !num_cols)
+      STRING (TigerTokens.StringToken (!str_content, !num_lines, !num_cols))
     }
 | '\n' as c
     {
@@ -339,7 +104,6 @@ and escapeRule = parse
     {
       TigerError.lexError "invalid escape rule" (Some chr) !num_lines !num_cols
     }
-    (* handles ASCII control codes *)
 and controlRule = parse
 (*Start escapes*)
 | '@'
@@ -565,7 +329,6 @@ and controlRule = parse
       str_content := append_char !str_content '\031';
       stringRule lexbuf
     }
-
 (*End escapes*)
 | eof 
     {
@@ -599,32 +362,4 @@ and formatRule = parse
 | _ as chr
     {
       TigerError.lexError "invalid format character" (Some chr) !num_lines !num_cols
-    }
-and commentRule = parse
-| "*/"
-    {
-      num_cols := !num_cols + 2;
-      if !comment_level > 0 then
-        (comment_level := !comment_level - 1;
-        if !comment_level == 0 then
-          token lexbuf
-        else 
-          commentRule lexbuf)
-      else
-        TigerError.lexError "Unmatched comment close" None !num_lines !num_cols
-    }
-| "/*"
-    {
-      num_cols := !num_cols + 2;
-      comment_level := !comment_level + 1;
-      commentRule lexbuf
-    }
-| _ 
-    {
-      num_cols := !num_cols + 1;
-      commentRule lexbuf
-    }
-| eof
-    {
-      TigerError.lexError "Unclosed comment" None !num_lines !num_cols
     }
