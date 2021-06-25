@@ -84,7 +84,7 @@ let expr :=
 
 let break_expr := BREAK; { Temp }
 
-let for_expr := FOR; IDENT; EQ; expr; TO; expr; DO; expr; { Temp }
+let for_expr := FOR; IDENT; ASSIGN; expr; TO; expr; DO; expr; { Temp }
 
 let call_expr := IDENT; LPAREN; args_expr; RPAREN; { Temp }
 
