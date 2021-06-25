@@ -1,31 +1,5 @@
-/**
- * Auxuliary functions
- */
- const toSingleString = (arr: string[]): string =>
-  arr.reduce((prev, curr) => `${prev}\n${curr}`);
-
- const camelCased = (str: string): string =>
-  `${str[0].toUpperCase()}${str.slice(1)}`;
-
-const keywords = [
-  "while",
-  "for",
-  "to",
-  "break",
-  "let",
-  "in",
-  "end",
-  "function",
-  "var",
-  "type",
-  "array",
-  "if",
-  "then",
-  "else",
-  "do",
-  "of",
-  "nil",
-];
+import { keywords, symbols } from '../data.ts';
+import { camelCased, toSingleString } from '../utils.ts';
 
 const getKeywordTypes = () =>
   keywords.map(kw => 
@@ -38,17 +12,7 @@ const getKeywordFns = () =>
     `let ${kw}Keyword (line, col) = ${camelCased(kw)}Token (line, col)`
   );
 
-const keywordFns = getKeywordFns().reduce((prev, curr) => `${prev}\n${curr}`);
-
-const symbols = [
-  [',', 'comma'], [':', 'colon'], 
-  [';', 'semicolon'], ['(', 'lparen'], [')', 'rparen'], 
-  ['[', 'lbrack'], [']', 'rbrack'], ['{', 'lcurly'], ['}', 'rcurly'], 
-  ['.', 'dot'], ['+', 'plus'], ['-', 'minus'], 
-  ['*', 'times'], ['/', 'div'], 
-  ['=', 'eq'], ['<>', 'ltgt'], ['<', 'lt'], ['<=', 'lteq'], ['>', 'gt'], ['>=', 'gteq'], 
-  ['&', 'and'], ['|', 'or'], [':=', 'assign'],
-];
+const keywordFns = toSingleString(getKeywordFns());
 
 const getSymbolTypes = () => 
   symbols.map(([_, name]) =>
@@ -62,9 +26,9 @@ const getSymbolFns = () =>
     `let ${name}Symbol (line, col) = ${camelCased(name)}Token (line, col)`
   );
 
-const symbolFns = getSymbolFns().reduce((prev, curr) => `${prev}\n${curr}`);
+const symbolFns = toSingleString(getSymbolFns());
 
-const tokensPath = "../../Tokens.ml";
+const tokensPath = "../../TigerTokens.ml";
 
 const text = Deno.readTextFileSync(tokensPath);
 

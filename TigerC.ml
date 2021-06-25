@@ -1,6 +1,4 @@
 (*Makes escaped characters visible in str*)
-open Syntax
-
 let escaped_str str =
   let chars =
     List.init (String.length str) (fun i -> Char.escaped (String.get str i))
@@ -21,5 +19,7 @@ let main filename =
 
 let () =
   let expr = main "tiger.tig" in
-  match expr with
-    | StringExpr str -> Printf.printf "String: %s\n" str
+  let str = Syntax.show_expr expr in
+  Printf.printf "Ast: %s\n" str
+  (* match expr with
+    | StringExpr str -> Printf.printf "String: %s\n" str *)

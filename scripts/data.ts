@@ -1,4 +1,4 @@
-const symbols = [
+export const symbols = [
     [',', 'comma'], [':', 'colon'], 
     [';', 'semicolon'], ['(', 'lparen'], [')', 'rparen'], 
     ['[', 'lbrack'], [']', 'rbrack'], ['{', 'lcurly'], ['}', 'rcurly'], 
@@ -8,19 +8,14 @@ const symbols = [
     ['&', 'and'], ['|', 'or'], [':=', 'assign'],
 ];
 
-const rules = symbols.map(([symbol, name]) => {
-    const len = symbol.length;
-
-    return (
-`| "${symbol}"
-    {
-        num_cols := !num_cols + ${len};
-        Tokens.${name}Symbol (!num_lines, !num_cols)
-    }`
-)
-});
-
-export const genSymbols = (): string =>
-    rules.reduce((prev, curr) => `${prev}\n${curr}`);
-
-// console.log(genSymbols());
+export const keywords = [
+    "while", "for",
+    "to",    "break",
+    "let",   "in",
+    "end",   "function",
+    "var",   "type",
+    "array", "if",
+    "then",  "else",
+    "do",    "of",
+    "nil"
+];  

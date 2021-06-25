@@ -6,27 +6,20 @@ const lexerPath = "../../lexer.mll";
 
 const text = Deno.readTextFileSync(lexerPath);
 
-const [beforeKeywords, _1] = text.split("(*Start keywords*)");
-const [_2, afterKeywords] = _1.split("(*End keywords*)");
-const [beforeSymbols, startSymbols] = afterKeywords.split("(*Start symbols*)");
-const [_5, afterSymbols] = startSymbols.split("(*End symbols*)");
-const [beforeEscapes, _3] = afterSymbols.split("(*Start escapes*)");
-const [_4, afterEscapes] = _3.split("(*End escapes*)");
+const [beforeKeywords, startKeywords] = text.split("(*Start keywords*)");
+const [_2, startSymbols] = startKeywords.split("(*Start symbols*)");
+const [_3, afterSymbols] = startSymbols.split("(*End symbols*)");
+const [beforeEscapes, startEscapes] = afterSymbols.split("(*Start escapes*)");
+const [_5, afterEscapes] = startEscapes.split("(*End escapes*)");
 
 const keywords = genKeywords();
 const escapes = genEscapes();
 const symbols = genSymbols();
 
-// console.log(symbols);
-
-// console.log(`before: ${beforeKeywords}`)
-
 const result = `\
 ${beforeKeywords}\
 (*Start keywords*)
 ${keywords}
-(*End keywords*)\
-${beforeSymbols}\
 (*Start symbols*)
 ${symbols}
 (*End symbols*)\
