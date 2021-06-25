@@ -18,8 +18,14 @@ let main filename =
   loop lexbuf
 
 let () =
-  let expr = main "/home/zer0/Projects/compilerOCaml/Files/tiger/testcases/merge.tig" in
-  let str = Syntax.show_expr expr in
-  Printf.printf "Ast: %s\n" str
-  (* match expr with
-    | StringExpr str -> Printf.printf "String: %s\n" str *)
+  let args = Array.to_list Sys.argv in
+  match args with
+  | _ :: path :: _ ->
+      let expr = main path in
+      let str = Syntax.show_expr expr in
+      Printf.printf "Ast: %s\n" str
+  | _ ->
+      Printf.printf "[TigerC] Usage: tigerC <path>\n"
+
+(* match expr with
+   | StringExpr str -> Printf.printf "String: %s\n" str *)
