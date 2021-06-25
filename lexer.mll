@@ -41,11 +41,6 @@ rule token = parse
       num_cols := !num_cols + (String.length integer);
       INT (TigerTokens.IntToken (int_of_string integer, !num_lines, !num_cols))  
     }
-| identifier as identifier
-    {
-      num_cols := !num_cols + (String.length identifier);
-      IDENT (TigerTokens.IdentToken (identifier, !num_lines, !num_cols))
-    }
 | "/*"
     {
       num_cols := !num_cols + 2;
@@ -255,6 +250,11 @@ rule token = parse
     {
         num_cols := !num_cols + 2;
         ASSIGN
+    }
+| identifier as identifier
+    {
+      num_cols := !num_cols + (String.length identifier);
+      IDENT (TigerTokens.IdentToken (identifier, !num_lines, !num_cols))
     }
 (*End symbols*)
 | _ as chr

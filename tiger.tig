@@ -1,5 +1,10 @@
-/*asdasdasd */
-
-
-
-----56
+let
+    type foo = bar
+    type zoo = { foo: b }
+    type x = array of zoo
+    var g: T := x[zoo]
+    var x := hh
+    function foo(g: G): U = let var z := g[x] in z[foo] end
+in
+    if foo then 6 * 4 else for i = 1 to 10 * 2 do break
+end

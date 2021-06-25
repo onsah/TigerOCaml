@@ -18,7 +18,7 @@ let main filename =
   loop lexbuf
 
 let () =
-  let expr = main "tiger.tig" in
+  let expr = main "/home/zer0/Projects/compilerOCaml/Files/tiger/testcases/merge.tig" in
   let str = Syntax.show_expr expr in
   Printf.printf "Ast: %s\n" str
   (* match expr with
