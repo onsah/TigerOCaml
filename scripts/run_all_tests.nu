@@ -1,2 +1,2 @@
-let testcases_path = "/home/zer0/Projects/compilerOCaml/Files/tiger/testcases";
-ls $testcases_path | each { $it.name } | each { dune exec ./TigerC.exe $it }
+let testcases_path = "./Files/tiger/testcases";
+ls $testcases_path | each { $it.name } | each { echo $"($it): (char newline)";  dune exec ./TigerC.exe $it  }
