@@ -1,16 +1,10 @@
+open Core
 open MenhirLib
 open UnitActionsParser
 
-(*Makes escaped characters visible in str*)
-let escaped_str str =
-  let chars =
-    List.init (String.length str) (fun i -> Char.escaped (String.get str i))
-  in
-  String.concat "" chars
-
 (*Fast pass, if no error results with better performance*)
-let quickpass filename : (Syntax.expr, string) result =
-  let text, lexbuf = LexerUtil.read filename in
+let quickpass text : (Syntax.expr, unit) result =
+  let lexbuf = Lexing.from_string text in
   match Parser.program Lexer.token lexbuf with
   | expr ->
       Ok expr
@@ -18,7 +12,7 @@ let quickpass filename : (Syntax.expr, string) result =
       Printf.eprintf "Error: %s" err ;
       exit 1
   | exception Parser.Error ->
-      Error text
+      Error ()
 
 let show_error text positions =
   ErrorReports.extract text positions
@@ -46,13 +40,14 @@ let incrementalpass filename text =
     (fail_handler text buffer) supplier checkpoint
 
 let () =
-  let args = Array.to_list Sys.argv in
+  let args = Array.to_list (Sys.get_argv ()) in
   match args with
   | _ :: path :: _ -> (
-    match quickpass path with
-    | Ok expr ->
-        Printf.printf "%s\n" (Syntax.show_expr expr)
-    | Error text ->
-        incrementalpass path text )
+      let text = In_channel.read_all path in
+      match quickpass text with
+      | Ok expr ->
+          Printf.printf "%s\n" (Syntax.show_expr expr)
+      | Error _ ->
+          incrementalpass path text )
   | _ ->
       Printf.printf "[TigerC] Usage: tigerC <path>\n"

@@ -2,7 +2,7 @@
  (name TigerC)
  (preprocess
   (pps ppx_deriving.show ppx_deriving.ord))
- (libraries menhirLib))
+ (libraries menhirLib core))
 
 (ocamllex
  (modules lexer))
