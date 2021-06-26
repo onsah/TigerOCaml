@@ -10,6 +10,11 @@
   let comment_level = ref 0
 
   let append_char str c = str ^ String.make 1 c
+
+  let newLine lexbuf = 
+    MenhirLib.LexerUtil.newline lexbuf;
+    num_lines := !num_lines + 1;
+    num_cols := 0
 }
 
 let digit = ['0'-'9']
@@ -27,8 +32,7 @@ rule token = parse
     }
 | newline
     {
-      num_lines := !num_lines + 1;
-      num_cols := 0;
+      newLine lexbuf;
       token lexbuf
     }
 | formatChars
@@ -267,10 +271,9 @@ and stringRule = parse
       num_cols := !num_cols + 1;
       STRING (TigerTokens.StringToken (!str_content, !num_lines, !num_cols))
     }
-| '\n' as c
+| newline as c
     {
-      num_lines := !num_lines + 1;
-      num_cols := 0;
+      newLine lexbuf;
       str_content := append_char !str_content c;
       stringRule lexbuf
     }
@@ -576,8 +579,7 @@ and controlRule = parse
 and formatRule = parse
 | newline
     {
-      num_lines := !num_lines + 1;
-      num_cols := 0;
+      newLine lexbuf;
       formatRule lexbuf
     }
 | formatChars
