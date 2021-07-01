@@ -1,10 +1,5 @@
 let 
-
-	type rectype = {name:string, id:int}
-	var b := rectype  nil
-
+    function sqrt(n: int): int = n * 2
 in
-
-	b := nil
-
+    sqrt(5); ()
 end

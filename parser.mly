@@ -1,5 +1,10 @@
 %{
     open Syntax
+    open Symbol
+
+    type lvalue_follow_t =
+      | FieldLvalueFollow of symbol * pos
+      | SubscriptLvalueFollow of expr * pos
 %}
 
 %token <TigerTokens.stringToken> STRING
@@ -9,44 +14,44 @@
 %token COMMA
 %token COLON
 %token SEMICOLON
-%token LPAREN
+%token <Syntax.pos> LPAREN
 %token RPAREN
-%token LBRACK
+%token <Syntax.pos> LBRACK
 %token RBRACK
-%token LCURLY
+%token <Syntax.pos> LCURLY
 %token RCURLY
-%token DOT
-%token PLUS
-%token MINUS
-%token TIMES
-%token DIV
-%token EQ
-%token LTGT
-%token LT
-%token LTEQ
-%token GT
-%token GTEQ
-%token AND
-%token OR
-%token ASSIGN
+%token <Syntax.pos> DOT
+%token <Syntax.pos> PLUS
+%token <Syntax.pos> MINUS
+%token <Syntax.pos> TIMES
+%token <Syntax.pos> DIV
+%token <Syntax.pos> EQ
+%token <Syntax.pos> LTGT
+%token <Syntax.pos> LT
+%token <Syntax.pos> LTEQ
+%token <Syntax.pos> GT
+%token <Syntax.pos> GTEQ
+%token <Syntax.pos> AND
+%token <Syntax.pos> OR
+%token <Syntax.pos> ASSIGN
 (*Start keyword tokens*)
-%token WHILE
-%token FOR
+%token <Syntax.pos> WHILE
+%token <Syntax.pos> FOR
 %token TO
-%token BREAK
-%token LET
-%token IN
+%token <Syntax.pos> BREAK
+%token <Syntax.pos> LET
+%token <Syntax.pos> IN
 %token END
 %token FUNCTION
-%token VAR
-%token TYPE
-%token ARRAY
-%token IF
+%token  <Syntax.pos> VAR
+%token <Syntax.pos> TYPE
+%token <Syntax.pos> ARRAY
+%token <Syntax.pos> IF
 %token THEN
 %token ELSE
 %token DO
 %token OF
-%token NIL
+%token <Syntax.pos> NIL
 (*End tokens*)
 %token EOF
 
@@ -70,6 +75,7 @@ let program :=
 
 let expr :=
   | binary_expr
+  | assign_expr
   | literal_expr
   | unary_expr
   | paren_expr
@@ -82,70 +88,233 @@ let expr :=
   | for_expr
   | break_expr
 
-let break_expr := BREAK; { Temp }
+let assign_expr := 
+    ~ = lvalue_expr; pos = ASSIGN; ~ = expr; 
+        { 
+            match lvalue_expr with 
+                | Expr { expr = LValueExpr { lvalue; _ }; _ } -> 
+                    let expr = AssignExpr { var = lvalue; expr } in
+                        Expr { expr; pos }  
+                | _ -> raise (Failure "Unreachable")
+        }
 
-let for_expr := FOR; IDENT; ASSIGN; expr; TO; expr; DO; expr; { Temp }
+let break_expr := pos = BREAK; { Expr { expr = BreakExpr; pos } }
 
-let call_expr := IDENT; LPAREN; args_expr; RPAREN; { Temp }
+let for_expr := 
+    pos = FOR; ident = IDENT; ASSIGN; from = expr; TO; too = expr; DO; body = expr; 
+        { 
+            let IdentToken (name, _, _) = ident in
+            let var = Symbol.symbol name in
+            let expr =  ForExpr { var; from; to' = too; body; escape = ref false } in 
+                Expr { expr; pos }
+        }
 
-let args_expr := option(expr; list(COMMA; expr)); { Temp }
+let call_expr := ident = IDENT; pos = LPAREN; expr_list = args_expr; RPAREN; {
+    let 
+      expr = CallExpr { func = Symbol.symbol (TigerTokens.getIdentName(ident)); args = expr_list } 
+    in
+      Expr { expr; pos }
+}
 
-let let_expr := LET; decls; IN; expr_seq?; END; { Temp }
+let args_expr := expr_list_opt = option(head = expr; tail = list(COMMA; ~ = expr; <>); { head :: tail }); { 
+  match expr_list_opt with 
+      | Some list -> list
+      | None -> []
+}
 
-let decls := decl*; { Temp }
+let let_expr := 
+    pos = LET; ~ = decls; body_pos = IN; body_opt = expr_seq?; END; 
+        { 
+            let body = match body_opt with 
+                | Some body -> body 
+                | None -> Expr { expr = SeqExpr []; pos = body_pos }
+            in
+            let expr = LetExpr { decls; body } in
+                Expr { expr; pos } 
+        }
+
+let decls := decls = list(decl); { decls }
 
 let decl := 
-    | type_decl; { Temp }
-    | var_decl; { Temp }
-    | fun_decl; { Temp }
+    | type_decls = nonempty_list(type_decl); { TypeDecls type_decls }
+    | var_decl
+    | fun_decls = nonempty_list(fun_decl); { FunctionDecls fun_decls }
 
-let fun_decl := FUNCTION; IDENT; LPAREN; type_fields; RPAREN; return_type; EQ; expr; { Temp }
+let fun_decl := 
+    FUNCTION; ident = IDENT; LPAREN; params = type_fields; RPAREN; ~ = return_type; EQ; body = expr; 
+        { 
+            let IdentToken (name, line, col) = ident in
+            let name = Symbol.symbol name in
+            let pos  = { line; col } in
+                FunDecl { name; params; return_type; body; pos }
+        }
 
-let var_decl := VAR; IDENT; return_type ; ASSIGN; expr; { Temp }
+let var_decl := 
+    pos = VAR; ident = IDENT; typ = return_type; ASSIGN; value = expr; 
+        { 
+            let IdentToken (name, _, _) = ident in
+            let name = Symbol.symbol name in 
+                VarDecl { name; typ; value; pos }
+        }
 
-let return_type := option(COLON; IDENT); { Temp }
+let return_type := 
+    ident_opt = option(COLON; IDENT); 
+        { 
+            match ident_opt with 
+                | Some IdentToken (name, line, col) -> 
+                    Some (Type { symbol = Symbol.symbol name; pos = { line; col } })
+                | None -> None
+        }
 
-let type_decl := TYPE; IDENT; EQ; type_expr; { Temp }
+let type_decl := 
+    pos = TYPE; ident = IDENT; EQ; decl = type_expr; 
+        { 
+            let IdentToken (name, _, _) = ident in
+            let name = Symbol.symbol name in 
+                TypeDecl { name; decl; pos }
+        }
 
 let type_expr == 
-    | IDENT; { Temp }
-    | LCURLY; type_fields; RCURLY; { Temp }
-    | ARRAY; OF; IDENT; { Temp }
+    | ident = IDENT; 
+        { 
+            let IdentToken (name, line, col) = ident in
+            let name = Symbol.symbol name in
+            let pos = { line; col } in
+                NameDecl { name; pos } 
+        }
+    | pos = LCURLY; fields = type_fields; RCURLY; 
+        { RecordDecl { fields; pos } }
+    | pos = ARRAY; OF; ident = IDENT; 
+        {  
+            let IdentToken (name, _, _) = ident in
+            let name = Symbol.symbol name in 
+                ArrayDecl { name; pos }
+        }   
 
-let type_fields := option(type_field; list(COMMA; type_field)); { Temp }
+let type_fields :=
+    type_fields_opt = option(head = type_field; tail = list(COMMA; type_field); { head :: tail }); 
+        { 
+            match type_fields_opt with 
+                | Some type_fields -> type_fields
+                | None -> []
+        }
 
-let type_field := IDENT; COLON; IDENT; { Temp }
+let type_field := 
+    name_id = IDENT; COLON; type_id = IDENT; 
+        {  
+            let IdentToken (name, line, col) = name_id in
+            let name = Symbol.symbol name in 
+            let pos = { line; col } in
+            let IdentToken (type_name, _, _) = type_id in
+            let typ = Symbol.symbol type_name in
+                TypedField { name; typ; pos; escape = ref false }
+        }
 
-let expr_seq := expr; list(SEMICOLON; expr); { Temp }
+let expr_seq := 
+    head = expr; tail = list(SEMICOLON; expr); 
+        { 
+            let expr = SeqExpr (head :: tail) in 
+            let Expr { pos; _ } = head in 
+                Expr { expr; pos } 
+        }
 
-(*TODO: this conflicts with array expr. It is safe to leave this way but would be good if we can eliminate*)
-let lvalue_expr := IDENT; lvalue_follow*; { Temp }
+let lvalue_expr := 
+    ident = IDENT; follow_list = list(lvalue_follow); 
+        { 
+            let IdentToken (name, line, col) = ident in
+            let pos = { line; col } in
+            let var = SimpleVar { 
+                symbol = (Symbol.symbol name); 
+                pos
+              }
+            in
+            let follow_fn curr follow = 
+                match follow with 
+                    | FieldLvalueFollow (symbol, pos) -> 
+                        FieldVar { var = curr; symbol; pos }
+                    | SubscriptLvalueFollow (expr, pos) ->
+                        SubscriptVar { var = curr; expr; pos }
+            in
+            let lvalue = List.fold_left follow_fn var follow_list in
+            let expr = LValueExpr { lvalue } in 
+                Expr { expr; pos }                
+        }
 
 let lvalue_follow :=
-    | DOT; IDENT; { Temp }
-    | LBRACK; expr; RBRACK; { Temp }
+    | pos = DOT; ident = IDENT; {
+        let IdentToken (name, _, _) = ident in 
+          FieldLvalueFollow (Symbol.symbol name, pos)
+    }
+    | pos = LBRACK; ~ = expr; RBRACK; { 
+        SubscriptLvalueFollow (expr, pos)
+    }
 
-let paren_expr := LPAREN; expr; list(SEMICOLON; expr); RPAREN; { Temp }
+let paren_expr := 
+    pos = LPAREN; expr_list_opt = option(head = expr; tail = list(SEMICOLON; ~ = expr; <>); { head :: tail }); RPAREN; 
+        { 
+            let expr_list = match expr_list_opt with
+              | Some list -> list 
+              | None -> [] 
+            in
+            let expr = SeqExpr expr_list in
+              Expr { expr; pos }
+        }
 
-let if_then_else_expr == IF; expr; THEN; expr; ELSE; expr; { Temp }
+let if_then_else_expr == 
+    pos = IF; cond = expr; THEN; then_arm = expr; ELSE; else_arm = expr; 
+        { 
+          let expr = IfExpr { cond; then_arm; else_arm = Some else_arm } in
+                Expr { expr; pos }
+        }
 
-let if_then_expr == IF; expr; THEN; expr; { Temp }
+let if_then_expr == 
+    pos = IF; cond = expr; THEN; then_arm = expr; 
+        { 
+            let expr = IfExpr { cond; then_arm; else_arm = None } in
+                Expr { expr; pos }
+        }
 
-let while_expr == WHILE; expr; DO; expr; { Temp }
+let while_expr == 
+    pos = WHILE; cond = expr; DO; body = expr; 
+        { 
+          let expr = WhileExpr { cond; body } in
+              Expr { expr; pos }
+        }
 
 let binary_expr :=
-  | expr; binop; expr; { Temp }
+  | left = expr; ~ = binop; right = expr; {
+      match binop with 
+        | (kind, pos) -> 
+          let expr = BinExpr { left; op = kind; right } in
+            Expr { expr; pos }
+  }
 
 let binop ==
-  | PLUS | MINUS | TIMES | DIV
-  | EQ | LTGT | LT | GT | LTEQ | GTEQ 
-  | AND | OR | ASSIGN
+  | pos = PLUS; { (BinaryPlus, pos) }
+  | pos = MINUS; { (BinaryMinus, pos) } 
+  | pos = TIMES; { (BinaryTimes, pos) } 
+  | pos = DIV; { (BinaryDiv, pos) }
+  | pos = EQ; { (BinaryEq, pos) } 
+  | pos = LTGT; { (BinaryLtgt, pos) } 
+  | pos = LT; { (BinaryLt, pos) } 
+  | pos = GT; { (BinaryGt, pos) } 
+  | pos = LTEQ; { (BinaryLteq, pos) } 
+  | pos = GTEQ; { (BinaryGteq, pos) } 
+  | pos = AND; { (BinaryAnd, pos) } 
+  | pos = OR; { (BinaryOr, pos) } 
 
 let unary_expr :=
-  | ~ = unary_op; ~ = expr; { UnaryExpr (unary_op, expr) }
+  | ~ = unary_op; ~ = expr; {  
+      match unary_op with 
+        | (kind, pos) -> 
+            let dummy_expr = Expr { expr = IntExpr 0; pos } in
+            let expr = BinExpr { left = dummy_expr; op = kind; right = expr } in
+              Expr { expr; pos }
+  }
 
+(*Tiger does not have unary operations in it's AST, so we use binary expr AST*)
 let unary_op ==
-  | MINUS; { UnaryMinus }
+  | unary_pos = MINUS; { (BinaryMinus, unary_pos) }
 
 let literal_expr == 
   | stringLit(
@@ -154,29 +323,57 @@ let literal_expr ==
   | intLit(
       | ~ = INT; <>
   )  
-  | NIL; { NilExpr }
-  | LPAREN; RPAREN; { Temp }
+  | pos = NIL; { Expr { expr = NilExpr; pos } }
   | record_expr
   | array_expr
 
-let record_expr := IDENT; LCURLY; record_body_expr?; RCURLY; { Temp }
+let record_expr := 
+    ident = IDENT; LCURLY; fields = record_body_expr; RCURLY; {  
+      let IdentToken (typ, line, col) = ident in
+      let expr = RecordExpr { fields; typ = Symbol.symbol typ } in
+        Expr { expr; pos = { line; col } }
+    }
 
-let record_body_expr := record_field_expr; list(COMMA; record_field_expr); { Temp }
+let record_body_expr := 
+  field_list_opt = option(
+    head = record_field_expr; 
+    tail = list(COMMA; ~ = record_field_expr; <>);
+    { head :: tail }
+  ); { 
+    match field_list_opt with 
+      | Some field_list -> field_list
+      | None -> []
+  }
 
-let record_field_expr := IDENT; EQ; expr; { Temp }
+let record_field_expr := 
+  ident = IDENT; pos =  EQ; ~ = expr; { 
+    { 
+      symbol = Symbol.symbol (TigerTokens.getIdentName(ident));  
+      expr;
+      pos
+    } 
+  }
 
-let array_expr == IDENT; LBRACK; expr; RBRACK; OF; expr; { Temp }
+let array_expr == 
+    ident = IDENT; LBRACK; size = expr; RBRACK; OF; init_value = expr; 
+        { 
+            let IdentToken (typ, line, col) = ident in 
+            let typ = Symbol.symbol typ in
+            let pos = { line; col } in 
+            let expr = ArrayExpr { typ; size; init_value } in 
+                Expr { expr; pos }
+        }
 
 let stringLit(x) :=
     ~ = x; { 
-        match x with 
-            | StringToken (str, _, _) -> StringExpr str  
+      let StringToken (str, line, col) = x in
+        Expr { expr = StringExpr str; pos = { line; col } }
     }
 
 let intLit(x) :=
     ~ = x; { 
-        match x with 
-            | IntToken (num, _, _) -> IntExpr num  
+      let IntToken (num, line, col) = x in
+        Expr { expr = IntExpr num; pos = { line; col } }  
     }
 
 %%

@@ -1,11 +1,14 @@
 {
   open Parser
   open TigerError
+  open Syntax
 
   exception Error of string
 
   let num_lines = ref 1
   let num_cols = ref 1
+  let start_lines = ref 1
+  let start_cols = ref 1
   let str_content = ref ""
   let comment_level = ref 0
 
@@ -14,7 +17,15 @@
   let newLine lexbuf = 
     MenhirLib.LexerUtil.newline lexbuf;
     num_lines := !num_lines + 1;
-    num_cols := 0
+    num_cols := 1
+
+  let get_pos () = { line = !num_lines; col = !num_cols }
+
+  let advance_and_return_start_pos length = 
+    let pos = get_pos() 
+    in 
+        num_cols := !num_cols + length;
+        pos
 }
 
 let digit = ['0'-'9']
@@ -28,6 +39,9 @@ rule token = parse
 '"'
     {
       str_content := "";
+      start_lines := !num_lines;
+      start_cols := !num_cols;
+      num_cols := !num_cols + 1;
       stringRule lexbuf
     }
 | newline
@@ -42,8 +56,9 @@ rule token = parse
     }
 | digit+ as integer
     {
-      num_cols := !num_cols + (String.length integer);
-      INT (TigerTokens.IntToken (int_of_string integer, !num_lines, !num_cols))  
+        start_cols := !num_cols;
+        num_cols := !num_cols + (String.length integer);
+        INT (TigerTokens.IntToken (int_of_string integer, !num_lines, !start_cols))  
     }
 | "/*"
     {
@@ -55,35 +70,20 @@ rule token = parse
     { EOF }
 (*Start keywords*)
 | "while"
-    {
-        num_cols := !num_cols + 5;
-        WHILE
-    }
+    { WHILE (advance_and_return_start_pos 5) }
 | "for"
-    {
-        num_cols := !num_cols + 3;
-        FOR
-    }
+    { FOR (advance_and_return_start_pos 3) }
 | "to"
     {
         num_cols := !num_cols + 2;
         TO
     }
 | "break"
-    {
-        num_cols := !num_cols + 5;
-        BREAK
-    }
+    { BREAK (advance_and_return_start_pos 5) }
 | "let"
-    {
-        num_cols := !num_cols + 3;
-        LET
-    }
+    { LET (advance_and_return_start_pos 3) }
 | "in"
-    {
-        num_cols := !num_cols + 2;
-        IN
-    }
+    { IN (advance_and_return_start_pos 2) }
 | "end"
     {
         num_cols := !num_cols + 3;
@@ -95,25 +95,13 @@ rule token = parse
         FUNCTION
     }
 | "var"
-    {
-        num_cols := !num_cols + 3;
-        VAR
-    }
+    { VAR (advance_and_return_start_pos 3) }
 | "type"
-    {
-        num_cols := !num_cols + 4;
-        TYPE
-    }
+    { TYPE (advance_and_return_start_pos 4) }
 | "array"
-    {
-        num_cols := !num_cols + 5;
-        ARRAY
-    }
+    { ARRAY (advance_and_return_start_pos 5) }
 | "if"
-    {
-        num_cols := !num_cols + 2;
-        IF
-    }
+    { IF (advance_and_return_start_pos 2) }
 | "then"
     {
         num_cols := !num_cols + 4;
@@ -136,8 +124,9 @@ rule token = parse
     }
 | "nil"
     {
-        num_cols := !num_cols + 3;
-        NIL
+        let pos = get_pos () in
+            num_cols := !num_cols + 3;
+            NIL (pos)
     }
 (*Start symbols*)
 | ","
@@ -157,8 +146,7 @@ rule token = parse
     }
 | "("
     {
-        num_cols := !num_cols + 1;
-        LPAREN
+        LPAREN (advance_and_return_start_pos 1)
     }
 | ")"
     {
@@ -166,99 +154,52 @@ rule token = parse
         RPAREN
     }
 | "["
-    {
-        num_cols := !num_cols + 1;
-        LBRACK
-    }
+    { LBRACK (advance_and_return_start_pos 1) }
 | "]"
     {
         num_cols := !num_cols + 1;
         RBRACK
     }
 | "{"
-    {
-        num_cols := !num_cols + 1;
-        LCURLY
-    }
+    { LCURLY (advance_and_return_start_pos 1) }
 | "}"
     {
         num_cols := !num_cols + 1;
         RCURLY
     }
-| "."
-    {
-        num_cols := !num_cols + 1;
-        DOT
-    }
-| "+"
-    {
-        num_cols := !num_cols + 1;
-        PLUS
-    }
+| "." 
+    { DOT (advance_and_return_start_pos 1) }
+| "+" 
+    { PLUS (advance_and_return_start_pos 1) }
 | "-"
-    {
-        num_cols := !num_cols + 1;
-        MINUS
-    }
-| "*"
-    {
-        num_cols := !num_cols + 1;
-        TIMES
-    }
-| "/"
-    {
-        num_cols := !num_cols + 1;
-        DIV
-    }
-| "="
-    {
-        num_cols := !num_cols + 1;
-        EQ
-    }
-| "<>"
-    {
-        num_cols := !num_cols + 2;
-        LTGT
-    }
+    { MINUS (advance_and_return_start_pos 1) }
+| "*" 
+    { TIMES (advance_and_return_start_pos 1) }
+| "/" 
+    { DIV (advance_and_return_start_pos 1) }
+| "=" 
+    { EQ (advance_and_return_start_pos 1) }
+| "<>" 
+    { LTGT (advance_and_return_start_pos 2) }
 | "<"
-    {
-        num_cols := !num_cols + 1;
-        LT
-    }
+    { LT (advance_and_return_start_pos 1) }
 | "<="
-    {
-        num_cols := !num_cols + 2;
-        LTEQ
-    }
+    { LTEQ (advance_and_return_start_pos 1) }
 | ">"
-    {
-        num_cols := !num_cols + 1;
-        GT
-    }
+    { GT (advance_and_return_start_pos 1) }
 | ">="
-    {
-        num_cols := !num_cols + 2;
-        GTEQ
-    }
+    { GTEQ (advance_and_return_start_pos 2) }
 | "&"
-    {
-        num_cols := !num_cols + 1;
-        AND
-    }
+    { AND (advance_and_return_start_pos 1) }
 | "|"
-    {
-        num_cols := !num_cols + 1;
-        OR
-    }
+    { OR (advance_and_return_start_pos 1) }
 | ":="
-    {
-        num_cols := !num_cols + 2;
-        ASSIGN
-    }
+    { ASSIGN (advance_and_return_start_pos 2) }
 | identifier as identifier
     {
-      num_cols := !num_cols + (String.length identifier);
-      IDENT (TigerTokens.IdentToken (identifier, !num_lines, !num_cols))
+        let { line; col } = get_pos() in
+            num_cols := !num_cols + (String.length identifier);
+            IDENT (TigerTokens.IdentToken (identifier, line, col))
     }
 (*End symbols*)
 | _ as chr
@@ -269,7 +210,7 @@ and stringRule = parse
 | '"'
     {
       num_cols := !num_cols + 1;
-      STRING (TigerTokens.StringToken (!str_content, !num_lines, !num_cols))
+      STRING (TigerTokens.StringToken (!str_content, !start_lines, !start_cols))
     }
 | newline as c
     {

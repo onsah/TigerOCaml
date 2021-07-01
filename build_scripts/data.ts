@@ -1,11 +1,16 @@
+export const binaryOperators = [
+    ['+', 'plus'], ['-', 'minus'], 
+    ['*', 'times'], ['/', 'div'], 
+    ['=', 'eq'], ['<>', 'ltgt'], ['<', 'lt'], ['<=', 'lteq'], ['>', 'gt'], ['>=', 'gteq'], 
+    ['&', 'and'], ['|', 'or'], [':=', 'assign'],
+];
+
 export const symbols = [
     [',', 'comma'], [':', 'colon'], 
     [';', 'semicolon'], ['(', 'lparen'], [')', 'rparen'], 
     ['[', 'lbrack'], [']', 'rbrack'], ['{', 'lcurly'], ['}', 'rcurly'], 
-    ['.', 'dot'], ['+', 'plus'], ['-', 'minus'], 
-    ['*', 'times'], ['/', 'div'], 
-    ['=', 'eq'], ['<>', 'ltgt'], ['<', 'lt'], ['<=', 'lteq'], ['>', 'gt'], ['>=', 'gteq'], 
-    ['&', 'and'], ['|', 'or'], [':=', 'assign'],
+    ['.', 'dot'], 
+    ...binaryOperators
 ];
 
 export const keywords = [
