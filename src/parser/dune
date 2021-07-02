@@ -1,12 +1,3 @@
-(executable
- (name TigerC)
- (preprocess
-  (pps ppx_deriving.show ppx_deriving.ord))
- (libraries menhirLib core))
-
-(ocamllex
- (modules lexer))
-
 (menhir
  (modules parser)
  (flags -lg 1 -la 1 -lc 2 --explain --interpret-show-cst))
@@ -23,3 +14,13 @@
   (modules unitActionsParser)
   (flags --table --external-tokens Parser)
 )
+
+(library
+ (name parser)
+ (modules Parser)
+ (libraries syntax tigerTokens))
+
+(library
+ (name unitActionsParser)
+ (modules UnitActionsParser)
+ (libraries parser menhirLib))

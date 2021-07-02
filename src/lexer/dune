@@ -1,0 +1,13 @@
+
+(ocamllex
+  (modules lexer))
+
+(library
+  (name lexer)
+  (modules lexer)
+  (libraries parser tigerError menhirLib))
+
+
+(library
+  (name tigerTokens)
+  (modules TigerTokens))

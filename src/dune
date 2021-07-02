@@ -1,0 +1,6 @@
+(executable
+ (name TigerC)
+  (preprocess
+    (pps ppx_deriving.show ppx_deriving.ord))
+  (libraries menhirLib core symbol lexer unitActionsParser syntax)
+  (modules TigerC))
