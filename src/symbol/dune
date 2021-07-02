@@ -1,12 +1,12 @@
 (library
  (name symbol)
- (modules Symbol)
+ (modules Symbol Table)
  (preprocess
   (pps ppx_deriving.show)))
 
 (library
-  (name syntax)
-  (libraries symbol)
-  (modules Syntax)
-  (preprocess
-    (pps ppx_deriving.show ppx_deriving.ord)))
+ (name syntax)
+ (libraries symbol)
+ (modules Syntax)
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving.ord)))

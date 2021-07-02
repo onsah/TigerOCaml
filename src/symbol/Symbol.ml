@@ -1,7 +1,30 @@
-type symbol = Symbol of string
+type symbol = Symbol of (string * int)
 [@@deriving show]
 
-let symbol str = Symbol str
+let nextSymbolId = ref 0
+let getNextSymbolId () = 
+	let next = !nextSymbolId in
+		nextSymbolId := !nextSymbolId + 1;
+		next
+let sizeHint = 128
+let hashtable: (string, int) Hashtbl.t = Hashtbl.create sizeHint
 
-let name symbol = match symbol with
-  | Symbol str -> str
+let symbol str = 
+	match Hashtbl.find_opt hashtable str with 
+		| Some id -> Symbol (str, id)
+		| None -> 
+			let id = getNextSymbolId () in 
+				Hashtbl.add hashtable str id;
+				Symbol (str, id)
+
+let name (Symbol (name, _)) = name
+
+module Table = Table.IntMapTable(struct
+	type t = symbol
+	let getInt (Symbol (_, i)) = i
+end)
+
+type 't table = 't Table.table
+let empty = Table.empty
+let enter = Table.enter
+let look = Table.look
