@@ -1,0 +1,18 @@
+(library
+ (name semant)
+ (modules Semant Env)
+ (libraries types translated syntax tigerError))
+
+(library
+ (name types)
+ (modules Types)
+ (libraries symbol)
+ (preprocess
+  (pps ppx_deriving.show)))
+
+(library
+ (name translated)
+ (modules Translated)
+ (libraries syntax types)
+ (preprocess
+  (pps ppx_deriving.show)))

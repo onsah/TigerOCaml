@@ -1,0 +1,16 @@
+(* All unit ref's are different than other. Used for unqiuely differentiating each type *)
+type unique = unit ref
+[@@deriving show]
+
+type ty =
+  | Int
+  | String 
+  | Record of (field list) * unique
+  | Array of ty * unique
+  | Nil
+  | Unit
+  (* Used as a placeholder for recursive types and forward declarations*)
+  | Name of Symbol.symbol * ty option ref
+[@@deriving show]
+and field = { id: Symbol.symbol; ty: ty }
+[@@deriving show]

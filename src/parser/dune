@@ -18,7 +18,7 @@
 (library
  (name parser)
  (modules Parser)
- (libraries syntax tigerTokens))
+ (libraries syntax tigerTokens tigerError))
 
 (library
  (name unitActionsParser)

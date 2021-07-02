@@ -1,6 +1,7 @@
 open Core
 open MenhirLib
 open UnitActionsParser
+open TigerError
 
 (*Fast pass, if no error results with better performance*)
 let quickpass text : (Syntax.expr, unit) result =
@@ -36,18 +37,23 @@ let incrementalpass filename text =
   let buffer, supplier = ErrorReports.wrap_supplier supplier in
   let checkpoint = UnitActionsParser.Incremental.program lexbuf.lex_curr_p in
   MenhirInterpreter.loop_handle
-    (fun _ -> assert false)
+    (fun _ -> TigerError.unreachable ())
     (fail_handler text buffer) supplier checkpoint
+
+let parse path =
+  let text = In_channel.read_all path in
+  match quickpass text with
+  | Ok expr ->
+      expr
+  | Error _ ->
+      incrementalpass path text
 
 let () =
   let args = Array.to_list (Sys.get_argv ()) in
   match args with
-  | _ :: path :: _ -> (
-      let text = In_channel.read_all path in
-      match quickpass text with
-      | Ok expr ->
-          Printf.printf "%s\n" (Syntax.show_expr expr)
-      | Error _ ->
-          incrementalpass path text )
+  | _ :: path :: _ ->
+      let expr = parse path in 
+		let typed_expr = Semant.type_check expr in
+			Printf.printf "%s\n" (Translated.show_typedExpr typed_expr)
   | _ ->
       Printf.printf "[TigerC] Usage: tigerC <path>\n"

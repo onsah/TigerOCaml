@@ -27,4 +27,6 @@ end)
 type 't table = 't Table.table
 let empty = Table.empty
 let enter = Table.enter
+let enter_all (t, entries) = 
+	List.fold_left (fun prev (key, value) -> enter (prev, key, value)) t entries
 let look = Table.look

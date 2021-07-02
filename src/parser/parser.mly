@@ -1,6 +1,7 @@
 %{
     open Syntax
     open Symbol
+    open TigerError
 
     type lvalue_follow_t =
       | FieldLvalueFollow of symbol * pos
@@ -95,7 +96,7 @@ let assign_expr :=
                 | Expr { expr = LValueExpr { lvalue; _ }; _ } -> 
                     let expr = AssignExpr { var = lvalue; expr } in
                         Expr { expr; pos }  
-                | _ -> raise (Failure "Unreachable")
+                | _ -> TigerError.unreachable()
         }
 
 let break_expr := pos = BREAK; { Expr { expr = BreakExpr; pos } }

@@ -2,5 +2,5 @@
  (name TigerC)
   (preprocess
     (pps ppx_deriving.show ppx_deriving.ord))
-  (libraries menhirLib core symbol lexer unitActionsParser syntax)
+  (libraries menhirLib core symbol lexer unitActionsParser syntax semant translated)
   (modules TigerC))

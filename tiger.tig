@@ -1,5 +1,1 @@
-let 
-    function sqrt(n: int): int = n * 2
-in
-    sqrt(5); ()
-end
+5 + 5
