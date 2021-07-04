@@ -15,7 +15,6 @@ type binary_op =
   | BinaryGteq
   | BinaryAnd
   | BinaryOr
-  | BinaryAssign
 [@@deriving show]
 
 type expr = Expr of {expr: expr_ast; pos: pos} [@@deriving show]
