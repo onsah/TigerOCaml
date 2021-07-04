@@ -1,5 +1,5 @@
-type expr = { expr: unit; pos: Syntax.pos }
+type expr = { translated_expr: unit; pos: Syntax.pos }
 [@@deriving show]
 
-type typedExpr = { expr: expr; ty: Types.ty }
+type typedExpr = { translated_expr: expr; ty: Types.ty }
 [@@deriving show]

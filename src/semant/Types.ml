@@ -12,5 +12,5 @@ type ty =
   (* Used as a placeholder for recursive types and forward declarations*)
   | Name of Symbol.symbol * ty option ref
 [@@deriving show]
-and field = { id: Symbol.symbol; ty: ty }
+and field = { field_id: Symbol.symbol; field_ty: ty }
 [@@deriving show]

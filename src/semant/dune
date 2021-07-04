@@ -1,7 +1,9 @@
 (library
  (name semant)
  (modules Semant Env)
- (libraries types translated syntax tigerError))
+ (libraries types translated syntax tigerError)
+ (preprocess
+  (pps ppx_deriving.show)))
 
 (library
  (name types)
