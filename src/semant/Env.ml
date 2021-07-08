@@ -29,6 +29,11 @@ let base_values =
         (Types.Record
            ([ { field_id = Symbol.symbol "guitarists"; field_ty = Types.Array (Types.String, ref ()) } ], ref ()))
     )
+  ;( Symbol.symbol "banddd"
+    , VarEntry
+        (Types.Record
+           ([ { field_id = Symbol.symbol "guitarists"; field_ty = Types.Array (Types.String, ref ()) } ], ref ()))
+    )
   ; (Symbol.symbol "language", VarEntry Types.String)
   ; (Symbol.symbol "arr", VarEntry (Types.Array (Types.String, ref ())))
     (* TODO: other built ins *)

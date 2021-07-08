@@ -67,12 +67,28 @@ let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
   | Syntax.SeqExpr exprs -> handle_seq_expr value_env type_env exprs pos
   | Syntax.AssignExpr { var; expr } -> handle_assign_expr value_env type_env var expr pos
   | Syntax.LValueExpr { lvalue } -> handle_lvalue_expr value_env type_env lvalue
+  | Syntax.IfExpr { cond; then_arm; else_arm } ->
+    handle_if_expr value_env type_env (cond, then_arm, else_arm) pos
   | _ -> TigerError.notImplemented ()
 
 and transBinary = function
   | value_env, type_env, Syntax.Expr { expr = Syntax.BinExpr { left; right; op }; pos } ->
     (* We will use this in the future *)
     (match op with
+    | BinaryEq ->
+      let { ty = left_ty; _ } = transExpr (value_env, type_env, left)
+      and { ty = right_ty; _ } = transExpr (value_env, type_env, right) in
+      (match left_ty == right_ty with
+      | true ->
+        { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
+      | false ->
+        TigerError.semant_error
+          ( Printf.sprintf
+              "Type mismatch. Types should be same for equality. Left expression is of \
+               type %s and right is %s "
+              (Types.show_ty left_ty)
+              (Types.show_ty right_ty)
+          , pos ))
     | _ ->
       let { ty = ty_left; translated_expr = { pos = pos_left; _ } } =
         transExpr (value_env, type_env, left)
@@ -194,6 +210,28 @@ and handle_assign_expr value_env type_env var expr pos =
       , pos )
 
 and handle_lvalue_expr value_env type_env lvalue = trans_var value_env type_env lvalue
+
+and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
+  let { translated_expr = { pos; _ }; ty = cond_ty } =
+    transExpr (value_env, type_env, cond)
+  in
+  let _ = expecting_int cond_ty pos in
+  let { ty = then_ty; _ } = transExpr (value_env, type_env, then_arm) in
+  match else_arm_opt with
+  | Some else_arm ->
+    let { translated_expr = { pos; _ }; ty = else_ty } =
+      transExpr (value_env, type_env, else_arm)
+    in
+    if then_ty = else_ty
+    then { translated_expr = { translated_expr = (); pos = if_pos }; ty = then_ty }
+    else
+      TigerError.semant_error
+        ( Printf.sprintf
+            "If arms does not match. Then arm is type of %s and else is %s"
+            (Types.show_ty then_ty)
+            (Types.show_ty else_ty)
+        , pos )
+  | None -> { translated_expr = { translated_expr = (); pos = if_pos }; ty = Types.Unit }
 
 and trans_var value_env type_env var =
   match var with
