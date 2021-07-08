@@ -25,6 +25,7 @@ and var =
   | SimpleVar of {symbol: symbol; pos: pos}
   | FieldVar of {var: var; symbol: symbol; pos: pos}
   | SubscriptVar of {var: var; expr: expr; pos: pos}
+[@@deriving show]
 
 and expr_ast =
   | NilExpr

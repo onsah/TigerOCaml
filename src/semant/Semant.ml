@@ -64,6 +64,9 @@ let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
           ^ Types.show_ty found_ty
           ^ ", but expected a record"
         , pos ))
+  | Syntax.SeqExpr exprs -> handle_seq_expr value_env type_env exprs pos
+  | Syntax.AssignExpr { var; expr } -> handle_assign_expr value_env type_env var expr pos
+  | Syntax.LValueExpr { lvalue } -> handle_lvalue_expr value_env type_env lvalue
   | _ -> TigerError.notImplemented ()
 
 and transBinary = function
@@ -168,3 +171,70 @@ and type_check_fields given_fields expected_fields record_name pos =
     names_with_types
 
 and type_check expr = transExpr (Env.baseValueEnv, Env.baseTypeEnv, expr)
+
+and handle_seq_expr value_env type_env exprs pos =
+  match exprs with
+  | [] -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | [ expr ] -> transExpr (value_env, type_env, expr)
+  | expr :: exprs ->
+    let _ = transExpr (value_env, type_env, expr) in
+    handle_seq_expr value_env type_env exprs pos
+
+and handle_assign_expr value_env type_env var expr pos =
+  let { translated_expr = _; ty = var_ty } = trans_var value_env type_env var
+  and { translated_expr = _; ty = expr_ty } = transExpr (value_env, type_env, expr) in
+  match var_ty = expr_ty with
+  | true -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | false ->
+    TigerError.semant_error
+      ( Printf.sprintf
+          "Type mismatch, assigned variable has type %s, but value is of type %s"
+          (Types.show_ty var_ty)
+          (Types.show_ty expr_ty)
+      , pos )
+
+and handle_lvalue_expr value_env type_env lvalue = trans_var value_env type_env lvalue
+
+and trans_var value_env type_env var =
+  match var with
+  | SimpleVar { symbol; pos } ->
+    let value_entry = check_look_env (value_env, symbol, pos) in
+    (* It must be a var *)
+    (match value_entry with
+    | VarEntry ty -> { translated_expr = { translated_expr = (); pos }; ty }
+    | _ -> TigerError.semant_error ("Can't assign to a function", pos))
+  | FieldVar { var; symbol; pos } ->
+    let { translated_expr = _; ty = var_ty } = trans_var value_env type_env var in
+    (match var_ty with
+    | Record (fields, _) ->
+      let field_id = symbol in
+      (match Types.find_field fields field_id with
+      | Some { field_ty; _ } ->
+        { translated_expr = { translated_expr = (); pos }; ty = field_ty }
+      | None ->
+        TigerError.semant_error
+          ( Printf.sprintf
+              "Field %s does not exist on type %s"
+              (Symbol.name field_id)
+              (Types.show_ty var_ty)
+          , pos ))
+    | _ ->
+      TigerError.semant_error
+        ( Printf.sprintf
+            "Variable %s is not a record, field accesses can only be done to records"
+            (Syntax.show_var var)
+        , pos ))
+  | SubscriptVar { var; expr; pos } ->
+    let { translated_expr = _; ty = var_ty } = trans_var value_env type_env var in
+    (match var_ty with
+    | Array (ty, _) ->
+      let trans_expr = transExpr (value_env, type_env, expr) in
+      let _ = expecting_int trans_expr.ty trans_expr.translated_expr.pos in
+      { translated_expr = { translated_expr = (); pos }; ty }
+    | _ ->
+      TigerError.semant_error
+        ( Printf.sprintf
+            "Variable %s is not an array, subscript accesses can only be done to arrays"
+            (Syntax.show_var var)
+        , pos ))
+;;
