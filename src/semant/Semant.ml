@@ -75,7 +75,7 @@ and transBinary = function
   | value_env, type_env, Syntax.Expr { expr = Syntax.BinExpr { left; right; op }; pos } ->
     (* We will use this in the future *)
     (match op with
-    | BinaryEq ->
+    | BinaryEq | BinaryLtgt ->
       let { ty = left_ty; _ } = transExpr (value_env, type_env, left)
       and { ty = right_ty; _ } = transExpr (value_env, type_env, right) in
       (match left_ty == right_ty with
@@ -199,7 +199,7 @@ and handle_seq_expr value_env type_env exprs pos =
 and handle_assign_expr value_env type_env var expr pos =
   let { translated_expr = _; ty = var_ty } = trans_var value_env type_env var
   and { translated_expr = _; ty = expr_ty } = transExpr (value_env, type_env, expr) in
-  match var_ty = expr_ty with
+  match var_ty == expr_ty with
   | true -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
   | false ->
     TigerError.semant_error
