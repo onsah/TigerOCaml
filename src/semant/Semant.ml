@@ -71,7 +71,11 @@ let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
     handle_if_expr value_env type_env (cond, then_arm, else_arm) pos
   | Syntax.WhileExpr { cond; body } ->
     handle_while_expr value_env type_env (cond, body) pos
-  | Syntax.ForExpr { var; from; to'; body; _ } -> handle_for_expr value_env type_env (var, from, to', body) pos
+  | Syntax.ForExpr { var; from; to'; body; _ } ->
+    handle_for_expr value_env type_env (var, from, to', body) pos
+  | Syntax.BreakExpr ->
+    { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | Syntax.LetExpr { decls; body } -> handle_let_expr value_env type_env (decls, body) pos
   | _ -> TigerError.notImplemented ()
 
 and transBinary = function
@@ -240,28 +244,45 @@ and handle_while_expr value_env type_env (cond, body) pos =
     transExpr (value_env, type_env, cond)
   in
   let _ = expecting_int cond_ty cond_pos in
-  let { ty = body_ty; translated_expr = { pos = body_pos; _ } } = transExpr (value_env, type_env, body) in
+  let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
+    transExpr (value_env, type_env, body)
+  in
   match body_ty with
-  | Types.Unit -> { translated_expr = { translated_expr = (); pos };  ty = Types.Unit }
+  | Types.Unit -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
   | body_ty ->
     TigerError.semant_error
-      ( Printf.sprintf "Body of a while must produce no value, which means it must return unit. But \
-         this body has type %s" (Types.show_ty body_ty)
+      ( Printf.sprintf
+          "Body of a while must produce no value, which means it must return unit. But \
+           this body has type %s"
+          (Types.show_ty body_ty)
       , body_pos )
+
 and handle_for_expr value_env type_env (var, from, to', body) pos =
-  let { ty = from_ty; translated_expr = { pos = from_pos; _ } } = transExpr (value_env, type_env, from)
-  and { ty = to_ty; translated_expr = { pos = to_pos; _ } } = transExpr (value_env, type_env, to') in
-  let _ = expecting_int from_ty from_pos 
-  and _ = expecting_int to_ty to_pos in 
+  let { ty = from_ty; translated_expr = { pos = from_pos; _ } } =
+    transExpr (value_env, type_env, from)
+  and { ty = to_ty; translated_expr = { pos = to_pos; _ } } =
+    transExpr (value_env, type_env, to')
+  in
+  let _ = expecting_int from_ty from_pos
+  and _ = expecting_int to_ty to_pos in
   let value_env = Symbol.enter (value_env, var, VarEntry Types.Int) in
-  let { ty = body_ty; translated_expr = { pos = body_pos; _ } } = transExpr (value_env, type_env, body) in 
-    match body_ty with 
-    | Types.Unit -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-    | body_ty -> 
-      TigerError.semant_error
-      ( Printf.sprintf "Body of a for must produce no value, which means it must return unit. But \
-         this body has type %s" (Types.show_ty body_ty)
+  let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
+    transExpr (value_env, type_env, body)
+  in
+  match body_ty with
+  | Types.Unit -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | body_ty ->
+    TigerError.semant_error
+      ( Printf.sprintf
+          "Body of a for must produce no value, which means it must return unit. But \
+           this body has type %s"
+          (Types.show_ty body_ty)
       , body_pos )
+
+and handle_let_expr value_env type_env (decls, body) _pos =
+  let value_env, type_env = trans_decls value_env type_env decls in
+  transExpr (value_env, type_env, body)
+
 and trans_var value_env type_env var =
   match var with
   | SimpleVar { symbol; pos } ->
@@ -304,4 +325,45 @@ and trans_var value_env type_env var =
             "Variable %s is not an array, subscript accesses can only be done to arrays"
             (Syntax.show_var var)
         , pos ))
+
+and trans_decls value_env type_env = function
+  | decl :: decls ->
+    let value_env, type_env = trans_decl value_env type_env decl in
+    trans_decls value_env type_env decls
+  | [] -> value_env, type_env
+
+and trans_decl value_env type_env = function
+  | VarDecl { name; typ; value; _ } ->
+    let { ty = value_ty; _ } = transExpr (value_env, type_env, value) in
+    let value_env = Symbol.enter (value_env, name, VarEntry value_ty) in
+    (match typ with
+    | None -> value_env, type_env
+    | Some (Type { symbol; pos }) ->
+      let decl_ty = check_look_ty (type_env, symbol, pos) in
+      (match decl_ty = value_ty with
+      | true -> value_env, type_env
+      | false ->
+        TigerError.semant_error
+          ( Printf.sprintf
+              "Declared type is %s but right hand side is the type %s"
+              (Types.show_ty decl_ty)
+              (Types.show_ty value_ty)
+          , pos )))
+  | TypeDecls [ TypeDecl { name; decl; _ } ] ->
+    let ty = trans_ty type_env decl in
+    let type_env = Symbol.enter (type_env, name, ty) in
+    value_env, type_env
+  | _ -> TigerError.notImplemented ()
+
+and trans_ty type_env = function
+  | RecordDecl { fields; _ } ->
+    let fields =
+      List.map
+        (function
+          | TypedField { name; typ; pos; _ } ->
+            { field_id = name; field_ty = check_look_ty (type_env, typ, pos) })
+        fields
+    in
+    Record (fields, ref ())
+  | _ -> TigerError.notImplemented ()
 ;;
