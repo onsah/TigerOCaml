@@ -49,7 +49,6 @@ and decl =
   | FunctionDecls of fundecl list
   | VarDecl of {name: symbol; typ: typ option; value: expr; pos: pos}
   | TypeDecls of typedecl list
-  | TempDecl
 
 and fundecl =
   | FunDecl of
