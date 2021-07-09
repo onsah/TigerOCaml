@@ -69,6 +69,8 @@ let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
   | Syntax.LValueExpr { lvalue } -> handle_lvalue_expr value_env type_env lvalue
   | Syntax.IfExpr { cond; then_arm; else_arm } ->
     handle_if_expr value_env type_env (cond, then_arm, else_arm) pos
+  | Syntax.WhileExpr { cond; body } ->
+    handle_while_expr value_env type_env (cond, body) pos
   | _ -> TigerError.notImplemented ()
 
 and transBinary = function
@@ -79,8 +81,7 @@ and transBinary = function
       let { ty = left_ty; _ } = transExpr (value_env, type_env, left)
       and { ty = right_ty; _ } = transExpr (value_env, type_env, right) in
       (match left_ty == right_ty with
-      | true ->
-        { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
+      | true -> { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
       | false ->
         TigerError.semant_error
           ( Printf.sprintf
@@ -232,6 +233,20 @@ and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
             (Types.show_ty else_ty)
         , pos )
   | None -> { translated_expr = { translated_expr = (); pos = if_pos }; ty = Types.Unit }
+
+and handle_while_expr value_env type_env (cond, body) pos =
+  let { translated_expr = { pos = cond_pos; _ }; ty = cond_ty } =
+    transExpr (value_env, type_env, cond)
+  in
+  let _ = expecting_int cond_ty cond_pos in
+  let { ty = body_ty; _ } = transExpr (value_env, type_env, body) in
+  match body_ty with
+  | Types.Unit -> { translated_expr = { translated_expr = (); pos };  ty = Types.Unit }
+  | body_ty ->
+    TigerError.semant_error
+      ( Printf.sprintf "Body of a while must produce no value, which means it must return unit. But \
+         this body has type %s" (Types.show_ty body_ty)
+      , pos )
 
 and trans_var value_env type_env var =
   match var with
