@@ -144,10 +144,9 @@ and type_check_args arg_types args pos =
     | None -> ())
   | false ->
     TigerError.semant_error
-      ( "Function takes "
-        ^ string_of_int arg_types_len
-        ^ " but given "
-        ^ string_of_int args_len
+      ( Printf.sprintf "Function takes %s arguments, but given %s"
+        (string_of_int arg_types_len)
+        (string_of_int args_len)
       , pos )
 
 (* This function first combines both given and expected names, than zips it with their types if provided.field_id
@@ -246,7 +245,10 @@ and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
             (Types.show_ty then_ty)
             (Types.show_ty else_ty)
         , pos )
-  | None -> { translated_expr = { translated_expr = (); pos = if_pos }; ty = Types.Unit }
+  | None ->
+    (* TODO: More descriptive error message *)
+    let _ = expecting_ty Types.Unit then_ty pos in
+    { translated_expr = { translated_expr = (); pos = if_pos }; ty = Types.Unit }
 
 and handle_while_expr value_env type_env (cond, body) pos =
   let { translated_expr = { pos = cond_pos; _ }; ty = cond_ty } =
