@@ -7,11 +7,19 @@ open Printf
 type valueEnv = Env.envEntry Symbol.table
 type typeEnv = Env.ty Symbol.table
 
-let expecting_int ty pos =
-  match ty with
-  | Types.Int -> ()
-  | _ -> TigerError.semant_error ("Expecting int", pos)
+let expecting_ty expected_ty given_ty pos =
+  match expected_ty == given_ty with
+  | true -> ()
+  | false ->
+    TigerError.semant_error
+      ( Printf.sprintf
+          "Expected type %s, found %s"
+          (Types.show_ty expected_ty)
+          (Types.show_ty given_ty)
+      , pos )
 ;;
+
+let expecting_int = expecting_ty Types.Int
 
 let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
   match expr with
@@ -76,7 +84,8 @@ let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
   | Syntax.BreakExpr ->
     { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
   | Syntax.LetExpr { decls; body } -> handle_let_expr value_env type_env (decls, body) pos
-  | _ -> TigerError.notImplemented ()
+  | Syntax.ArrayExpr { typ; size; init_value } ->
+    handle_array_expr value_env type_env (typ, size, init_value) pos
 
 and transBinary = function
   | value_env, type_env, Syntax.Expr { expr = Syntax.BinExpr { left; right; op }; pos } ->
@@ -283,6 +292,22 @@ and handle_let_expr value_env type_env (decls, body) _pos =
   let value_env, type_env = trans_decls value_env type_env decls in
   transExpr (value_env, type_env, body)
 
+and handle_array_expr value_env type_env (typ_symbol, size_expr, init_expr) pos =
+  let ty = check_look_ty (type_env, typ_symbol, pos) in 
+  match ty with
+  | Array (value_ty, _) ->
+    let { ty = size_ty; translated_expr = { pos = size_pos; _ } } =
+      transExpr (value_env, type_env, size_expr)
+    and { ty = init_ty; translated_expr = { pos = init_pos; _ } } =
+      transExpr (value_env, type_env, init_expr)
+    in
+    let _ = expecting_int size_ty size_pos
+    and _ = expecting_ty value_ty init_ty init_pos in
+    { ty; translated_expr = { pos; translated_expr = () } }
+  | ty ->
+    TigerError.semant_error
+      (Printf.sprintf "Expected array type, found %s" (Types.show_ty ty), pos)
+
 and trans_var value_env type_env var =
   match var with
   | SimpleVar { symbol; pos } ->
@@ -340,7 +365,7 @@ and trans_decl value_env type_env = function
     | None -> value_env, type_env
     | Some (Type { symbol; pos }) ->
       let decl_ty = check_look_ty (type_env, symbol, pos) in
-      (match decl_ty = value_ty with
+      (match decl_ty == value_ty with
       | true -> value_env, type_env
       | false ->
         TigerError.semant_error
@@ -365,8 +390,6 @@ and trans_ty type_env = function
         fields
     in
     Record (fields, ref ())
-  | NameDecl { name; pos } ->
-    check_look_ty (type_env, name, pos)
-  | ArrayDecl { name; pos } ->
-    Array (check_look_ty (type_env, name, pos), ref ())
+  | NameDecl { name; pos } -> check_look_ty (type_env, name, pos)
+  | ArrayDecl { name; pos } -> Array (check_look_ty (type_env, name, pos), ref ())
 ;;
