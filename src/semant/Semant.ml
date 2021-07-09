@@ -367,5 +367,6 @@ and trans_ty type_env = function
     Record (fields, ref ())
   | NameDecl { name; pos } ->
     check_look_ty (type_env, name, pos)
-  | _ -> TigerError.notImplemented ()
+  | ArrayDecl { name; pos } ->
+    Array (check_look_ty (type_env, name, pos), ref ())
 ;;
