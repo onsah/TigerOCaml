@@ -13,7 +13,7 @@ let expecting_ty expected_ty given_ty pos =
   | false ->
     TigerError.semant_error
       ( Printf.sprintf
-          "Expected type %s, found %s"
+          "Type mismatch: Expected type %s, found %s"
           (Types.show_ty expected_ty)
           (Types.show_ty given_ty)
       , pos )
@@ -293,7 +293,7 @@ and handle_let_expr value_env type_env (decls, body) _pos =
   transExpr (value_env, type_env, body)
 
 and handle_array_expr value_env type_env (typ_symbol, size_expr, init_expr) pos =
-  let ty = check_look_ty (type_env, typ_symbol, pos) in 
+  let ty = check_look_ty (type_env, typ_symbol, pos) in
   match ty with
   | Array (value_ty, _) ->
     let { ty = size_ty; translated_expr = { pos = size_pos; _ } } =
@@ -378,6 +378,37 @@ and trans_decl value_env type_env = function
     let ty = trans_ty type_env decl in
     let type_env = Symbol.enter (type_env, name, ty) in
     value_env, type_env
+  | FunctionDecls [ FunDecl { name; params; return_type; body; _ } ] ->
+    let param_names_with_tys =
+      List.map
+        (function
+          | TypedField { name; typ; pos; _ } -> name, check_look_ty (type_env, typ, pos))
+        params
+    in
+    let return_ty_opt =
+      Option.map
+        (function
+          | Type { symbol; pos } -> check_look_ty (type_env, symbol, pos))
+        return_type
+    in
+    let return_ty = match return_ty_opt with 
+      | Some return_ty -> return_ty
+      | None -> Types.Unit 
+    in
+    let param_tys = List.map (fun (_, ty) -> ty) param_names_with_tys in
+    (* Function declaration itself will live outside the function as well, but parameters do not *)
+    let value_env = Symbol.enter (value_env, name,
+      Env.FunEntry { argTypes = param_tys; return_type = return_ty }) in 
+    let value_env' =
+      Symbol.enter_all
+        (value_env, List.map (fun (name, ty) -> name, Env.VarEntry ty) param_names_with_tys)
+    in
+    let { ty = body_ty; translated_expr = { pos = body_pos; translated_expr = () } } =
+      transExpr (value_env', type_env, body)
+    in
+    let _ = expecting_ty return_ty body_ty body_pos
+    in
+    (value_env, type_env)
   | _ -> TigerError.notImplemented ()
 
 and trans_ty type_env = function
