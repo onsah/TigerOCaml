@@ -15,18 +15,24 @@ let quickpass text : (Syntax.expr, unit) result =
   | exception Parser.Error ->
       Error ()
 
+
 let show_error text positions =
   ErrorReports.extract text positions
-  |> ErrorReports.sanitize |> ErrorReports.compress |> ErrorReports.shorten 20
+  |> ErrorReports.sanitize
+  |> ErrorReports.compress
+  |> ErrorReports.shorten 20
+
 
 let fail_handler text buffer (_ : _ MenhirInterpreter.checkpoint) =
   let location = LexerUtil.range (ErrorReports.last buffer) in
   let errorTokens =
-    Printf.sprintf "Syntax error: %s"
+    Printf.sprintf
+      "Syntax error: %s"
       (ErrorReports.show (show_error text) buffer)
   in
   Printf.eprintf "%s%s!\n" location errorTokens ;
   exit 1
+
 
 (*We only run this to find the error location in the parsing phase.*)
 let incrementalpass filename text =
@@ -38,7 +44,10 @@ let incrementalpass filename text =
   let checkpoint = UnitActionsParser.Incremental.program lexbuf.lex_curr_p in
   MenhirInterpreter.loop_handle
     (fun _ -> TigerError.unreachable ())
-    (fail_handler text buffer) supplier checkpoint
+    (fail_handler text buffer)
+    supplier
+    checkpoint
+
 
 let parse path =
   let text = In_channel.read_all path in
@@ -47,6 +56,7 @@ let parse path =
       expr
   | Error _ ->
       incrementalpass path text
+
 
 let () =
   let args = Array.to_list (Sys.get_argv ()) in

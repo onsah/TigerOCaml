@@ -7,6 +7,7 @@ let getNextSymbolId () =
   nextSymbolId := !nextSymbolId + 1 ;
   next
 
+
 let sizeHint = 128
 
 let hashtable : (string, int) Hashtbl.t = Hashtbl.create sizeHint
@@ -19,6 +20,7 @@ let symbol str =
       let id = getNextSymbolId () in
       Hashtbl.add hashtable str id ;
       Symbol (str, id)
+
 
 let name (Symbol (name, _)) = name
 
@@ -36,5 +38,6 @@ let enter = Table.enter
 
 let enter_all (t, entries) =
   List.fold_left (fun prev (key, value) -> enter (prev, key, value)) t entries
+
 
 let look = Table.look

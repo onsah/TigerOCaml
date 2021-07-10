@@ -14,17 +14,27 @@ module TigerError = struct
     | Some chr ->
         raise
           (LexError
-             ( "[" ^ prefix ^ "] Failed to parse " ^ Char.escaped chr
-             ^ " at line: " ^ string_of_int line ^ ", column: "
+             ( "["
+             ^ prefix
+             ^ "] Failed to parse "
+             ^ Char.escaped chr
+             ^ " at line: "
+             ^ string_of_int line
+             ^ ", column: "
              ^ string_of_int pos ) )
     | None ->
         raise
           (LexError
-             ( "[" ^ prefix ^ "] at line: " ^ string_of_int line ^ ", column: "
+             ( "["
+             ^ prefix
+             ^ "] at line: "
+             ^ string_of_int line
+             ^ ", column: "
              ^ string_of_int pos ) )
 
+
   let semant_error (msg, pos) =
-    let {line; col} = pos in
+    let { line; col } = pos in
     raise
       (SemantError
          (msg ^ ": at line " ^ string_of_int line ^ ", col " ^ string_of_int col)

@@ -12,7 +12,11 @@ type ty =
   | Name of Symbol.symbol * ty option ref
 [@@deriving show]
 
-and field = {field_id: Symbol.symbol; field_ty: ty} [@@deriving show]
+and field =
+  { field_id : Symbol.symbol
+  ; field_ty : ty
+  }
+[@@deriving show]
 
 let is_record ty = match ty with Record _ -> true | _ -> false
 
