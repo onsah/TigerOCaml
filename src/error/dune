@@ -1,4 +1,4 @@
 (library
-  (name tigerError)
-  (modules TigerError)
-  (libraries syntax))
+ (name tigerError)
+ (modules TigerError)
+ (libraries syntax))

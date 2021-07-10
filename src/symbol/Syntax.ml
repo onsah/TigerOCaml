@@ -42,7 +42,7 @@ and expr_ast =
   | ForExpr of {var: symbol; escape: bool ref; from: expr; to': expr; body: expr}
   | BreakExpr
   | LetExpr of {decls: decl list; body: expr}
-  | ArrayExpr of { typ: symbol; size: expr; init_value: expr }
+  | ArrayExpr of {typ: symbol; size: expr; init_value: expr}
 [@@deriving show]
 
 and decl =

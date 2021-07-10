@@ -5,8 +5,7 @@ type intToken = IntToken of int * int * int
 type identToken = IdentToken of string * int * int
 
 let getIdentName identToken =
-    match identToken with 
-      | IdentToken (name, _, _) -> name
+  match identToken with IdentToken (name, _, _) -> name
 
 (*Start keyword types*)
 type whileToken = WhileToken of int * int

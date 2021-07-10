@@ -3,17 +3,14 @@
  (flags -lg 1 -la 1 -lc 2 --explain --interpret-show-cst))
 
 (rule
-  (action
-    (with-stdout-to unitActionsParser.mly
-      (run menhir
-        %{dep:parser.mly}
-        --only-preprocess-u
-))))
+ (action
+  (with-stdout-to
+   unitActionsParser.mly
+   (run menhir %{dep:parser.mly} --only-preprocess-u))))
 
 (menhir
-  (modules unitActionsParser)
-  (flags --table --external-tokens Parser)
-)
+ (modules unitActionsParser)
+ (flags --table --external-tokens Parser))
 
 (library
  (name parser)

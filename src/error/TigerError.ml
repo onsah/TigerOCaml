@@ -1,8 +1,8 @@
 open Syntax
 
 module TigerError = struct
-  
   exception LexError of string
+
   exception SemantError of string
 
   let unreachable () = raise (Failure "Unreachable")
@@ -23,8 +23,10 @@ module TigerError = struct
              ( "[" ^ prefix ^ "] at line: " ^ string_of_int line ^ ", column: "
              ^ string_of_int pos ) )
 
-    let semant_error (msg, pos) = 
-      let {line; col} = pos in
-        raise (SemantError (msg ^ ": at line " ^ string_of_int line ^ ", col " ^ string_of_int col))
-
+  let semant_error (msg, pos) =
+    let {line; col} = pos in
+    raise
+      (SemantError
+         (msg ^ ": at line " ^ string_of_int line ^ ", col " ^ string_of_int col)
+      )
 end
