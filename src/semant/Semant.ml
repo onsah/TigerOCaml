@@ -32,61 +32,11 @@ let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
   | Syntax.StringExpr _ ->
       { translated_expr = { translated_expr = (); pos }; ty = Types.String }
   | Syntax.CallExpr { func; args } ->
-      let entry = check_look_env (value_env, func, pos) in
-      ( match entry with
-      | Env.FunEntry { argTypes; return_type } ->
-          let args_checked =
-            List.map (fun arg -> transExpr (value_env, type_env, arg)) args
-          in
-          type_check_args
-            argTypes
-            (List.map (fun arg -> arg.ty) args_checked)
-            pos ;
-          { translated_expr = { translated_expr = (); pos }; ty = return_type }
-      | other ->
-          TigerError.semant_error
-            ( "Variable "
-              ^ Symbol.name func
-              ^ " is expected to be function, but found "
-              ^ Env.show_envEntry other
-            , pos ) )
+      handle_call_expr value_env type_env (func, args) pos
   | Syntax.BinExpr { left; right; op } ->
-      transBinary
-        ( value_env
-        , type_env
-        , Syntax.Expr { expr = Syntax.BinExpr { left; right; op }; pos } )
+      handle_binary_expr value_env type_env (left, right, op) pos
   | Syntax.RecordExpr { typ; fields } ->
-      let record_ty = check_look_ty (type_env, typ, pos) in
-      ( match record_ty with
-      | Types.Record (expected_field_types, _) ->
-          let field_exprs = List.map (fun field -> field.expr) fields in
-          let checked_fields =
-            List.map
-              (fun field_expr -> transExpr (value_env, type_env, field_expr))
-              field_exprs
-          in
-          let field_names_with_types =
-            List.map
-              (fun (field, checked_field) ->
-                (field.symbol, checked_field.ty, field.pos) )
-              (List.combine fields checked_fields)
-          in
-          let _ =
-            type_check_fields
-              field_names_with_types
-              expected_field_types
-              typ
-              pos
-          in
-          { translated_expr = { translated_expr = (); pos }; ty = record_ty }
-      | found_ty ->
-          TigerError.semant_error
-            ( "Type "
-              ^ Symbol.name typ
-              ^ " is "
-              ^ Types.show_ty found_ty
-              ^ ", but expected a record"
-            , pos ) )
+      handle_record_expr value_env type_env (typ, fields) pos
   | Syntax.SeqExpr exprs ->
       handle_seq_expr value_env type_env exprs pos
   | Syntax.AssignExpr { var; expr } ->
@@ -248,149 +198,17 @@ and type_check_fields given_fields expected_fields record_name pos =
 
 and type_check expr = transExpr (Env.baseValueEnv, Env.baseTypeEnv, expr)
 
-and handle_seq_expr value_env type_env exprs pos =
-  match exprs with
-  | [] ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-  | [ expr ] ->
-      transExpr (value_env, type_env, expr)
-  | expr :: exprs ->
-      let _ = transExpr (value_env, type_env, expr) in
-      handle_seq_expr value_env type_env exprs pos
-
-
-and handle_assign_expr value_env type_env var expr pos =
-  let { translated_expr = _; ty = var_ty } = trans_var value_env type_env var
-  and { translated_expr = _; ty = expr_ty } =
-    transExpr (value_env, type_env, expr)
-  in
-  match (var_ty, expr_ty) with
-  | var_ty, expr_ty when var_ty == expr_ty ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-  | Record _, Nil ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-  | _ ->
-      TigerError.semant_error
-        ( Printf.sprintf
-            "Type mismatch, assigned variable has type %s, but value is of \
-             type %s"
-            (Types.show_ty var_ty)
-            (Types.show_ty expr_ty)
-        , pos )
-
-
-and handle_lvalue_expr value_env type_env lvalue =
-  trans_var value_env type_env lvalue
-
-
-and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
-  let { translated_expr = { pos; _ }; ty = cond_ty } =
-    transExpr (value_env, type_env, cond)
-  in
-  let _ = expecting_int cond_ty pos in
-  let { ty = then_ty; _ } = transExpr (value_env, type_env, then_arm) in
-  match else_arm_opt with
-  | Some else_arm ->
-      let { translated_expr = { pos; _ }; ty = else_ty } =
-        transExpr (value_env, type_env, else_arm)
-      in
-      if then_ty = else_ty
-      then
-        { translated_expr = { translated_expr = (); pos = if_pos }
-        ; ty = then_ty
-        }
-      else
-        TigerError.semant_error
-          ( Printf.sprintf
-              "If arms does not match. Then arm is type of %s and else is %s"
-              (Types.show_ty then_ty)
-              (Types.show_ty else_ty)
-          , pos )
-  | None ->
-      (* TODO: More descriptive error message *)
-      let _ = expecting_ty Types.Unit then_ty pos in
-      { translated_expr = { translated_expr = (); pos = if_pos }
-      ; ty = Types.Unit
-      }
-
-
-and handle_while_expr value_env type_env (cond, body) pos =
-  let { translated_expr = { pos = cond_pos; _ }; ty = cond_ty } =
-    transExpr (value_env, type_env, cond)
-  in
-  let _ = expecting_int cond_ty cond_pos in
-  let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-    transExpr (value_env, type_env, body)
-  in
-  match body_ty with
-  | Types.Unit ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-  | body_ty ->
-      TigerError.semant_error
-        ( Printf.sprintf
-            "Body of a while must produce no value, which means it must return \
-             unit. But this body has type %s"
-            (Types.show_ty body_ty)
-        , body_pos )
-
-
-and handle_for_expr value_env type_env (var, from, to', body) pos =
-  let { ty = from_ty; translated_expr = { pos = from_pos; _ } } =
-    transExpr (value_env, type_env, from)
-  and { ty = to_ty; translated_expr = { pos = to_pos; _ } } =
-    transExpr (value_env, type_env, to')
-  in
-  let _ = expecting_int from_ty from_pos
-  and _ = expecting_int to_ty to_pos in
-  let value_env = Symbol.enter (value_env, var, VarEntry Types.Int) in
-  let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-    transExpr (value_env, type_env, body)
-  in
-  match body_ty with
-  | Types.Unit ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-  | body_ty ->
-      TigerError.semant_error
-        ( Printf.sprintf
-            "Body of a for must produce no value, which means it must return \
-             unit. But this body has type %s"
-            (Types.show_ty body_ty)
-        , body_pos )
-
-
-and handle_let_expr value_env type_env (decls, body) _pos =
-  let value_env, type_env = trans_decls value_env type_env decls in
-  transExpr (value_env, type_env, body)
-
-
-and handle_array_expr value_env type_env (typ_symbol, size_expr, init_expr) pos
-    =
-  let ty = check_look_ty (type_env, typ_symbol, pos) in
-  match ty with
-  | Array (value_ty, _) ->
-      let { ty = size_ty; translated_expr = { pos = size_pos; _ } } =
-        transExpr (value_env, type_env, size_expr)
-      and { ty = init_ty; translated_expr = { pos = init_pos; _ } } =
-        transExpr (value_env, type_env, init_expr)
-      in
-      let _ = expecting_int size_ty size_pos
-      and _ = expecting_ty value_ty init_ty init_pos in
-      { ty; translated_expr = { pos; translated_expr = () } }
-  | ty ->
-      TigerError.semant_error
-        (Printf.sprintf "Expected array type, found %s" (Types.show_ty ty), pos)
-
-
 and trans_var value_env type_env var =
   match var with
   | SimpleVar { symbol; pos } ->
       let value_entry = check_look_env (value_env, symbol, pos) in
       (* It must be a var *)
-      ( match value_entry with
-      | VarEntry ty ->
-          { translated_expr = { translated_expr = (); pos }; ty }
-      | FunEntry _ ->
-          TigerError.semant_error ("Functions can't be an lvalue", pos) )
+      Env.(
+        ( match value_entry with
+        | VarEntry ty ->
+            { translated_expr = { translated_expr = (); pos }; ty }
+        | FunEntry _ ->
+            TigerError.semant_error ("Functions can't be an lvalue", pos) ))
   | FieldVar { var; symbol; pos } ->
       let { translated_expr = _; ty = var_ty } =
         trans_var value_env type_env var
@@ -527,3 +345,191 @@ and trans_ty type_env = function
       check_look_ty (type_env, name, pos)
   | ArrayDecl { name; pos } ->
       Array (check_look_ty (type_env, name, pos), ref ())
+
+
+and handle_seq_expr value_env type_env exprs pos =
+  match exprs with
+  | [] ->
+      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | [ expr ] ->
+      transExpr (value_env, type_env, expr)
+  | expr :: exprs ->
+      let _ = transExpr (value_env, type_env, expr) in
+      handle_seq_expr value_env type_env exprs pos
+
+
+and handle_assign_expr value_env type_env var expr pos =
+  let { translated_expr = _; ty = var_ty } = trans_var value_env type_env var
+  and { translated_expr = _; ty = expr_ty } =
+    transExpr (value_env, type_env, expr)
+  in
+  match (var_ty, expr_ty) with
+  | var_ty, expr_ty when var_ty == expr_ty ->
+      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | Record _, Nil ->
+      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | _ ->
+      TigerError.semant_error
+        ( Printf.sprintf
+            "Type mismatch, assigned variable has type %s, but value is of \
+             type %s"
+            (Types.show_ty var_ty)
+            (Types.show_ty expr_ty)
+        , pos )
+
+
+and handle_lvalue_expr value_env type_env lvalue =
+  trans_var value_env type_env lvalue
+
+
+and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
+  let { translated_expr = { pos; _ }; ty = cond_ty } =
+    transExpr (value_env, type_env, cond)
+  in
+  let _ = expecting_int cond_ty pos in
+  let { ty = then_ty; _ } = transExpr (value_env, type_env, then_arm) in
+  match else_arm_opt with
+  | Some else_arm ->
+      let { translated_expr = { pos; _ }; ty = else_ty } =
+        transExpr (value_env, type_env, else_arm)
+      in
+      if then_ty = else_ty
+      then
+        { translated_expr = { translated_expr = (); pos = if_pos }
+        ; ty = then_ty
+        }
+      else
+        TigerError.semant_error
+          ( Printf.sprintf
+              "If arms does not match. Then arm is type of %s and else is %s"
+              (Types.show_ty then_ty)
+              (Types.show_ty else_ty)
+          , pos )
+  | None ->
+      (* TODO: More descriptive error message *)
+      let _ = expecting_ty Types.Unit then_ty pos in
+      { translated_expr = { translated_expr = (); pos = if_pos }
+      ; ty = Types.Unit
+      }
+
+
+and handle_while_expr value_env type_env (cond, body) pos =
+  let { translated_expr = { pos = cond_pos; _ }; ty = cond_ty } =
+    transExpr (value_env, type_env, cond)
+  in
+  let _ = expecting_int cond_ty cond_pos in
+  let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
+    transExpr (value_env, type_env, body)
+  in
+  match body_ty with
+  | Types.Unit ->
+      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | body_ty ->
+      TigerError.semant_error
+        ( Printf.sprintf
+            "Body of a while must produce no value, which means it must return \
+             unit. But this body has type %s"
+            (Types.show_ty body_ty)
+        , body_pos )
+
+
+and handle_for_expr value_env type_env (var, from, to', body) pos =
+  let { ty = from_ty; translated_expr = { pos = from_pos; _ } } =
+    transExpr (value_env, type_env, from)
+  and { ty = to_ty; translated_expr = { pos = to_pos; _ } } =
+    transExpr (value_env, type_env, to')
+  in
+  let _ = expecting_int from_ty from_pos
+  and _ = expecting_int to_ty to_pos in
+  let value_env = Symbol.enter (value_env, var, VarEntry Types.Int) in
+  let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
+    transExpr (value_env, type_env, body)
+  in
+  match body_ty with
+  | Types.Unit ->
+      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | body_ty ->
+      TigerError.semant_error
+        ( Printf.sprintf
+            "Body of a for must produce no value, which means it must return \
+             unit. But this body has type %s"
+            (Types.show_ty body_ty)
+        , body_pos )
+
+
+and handle_let_expr value_env type_env (decls, body) _pos =
+  let value_env, type_env = trans_decls value_env type_env decls in
+  transExpr (value_env, type_env, body)
+
+
+and handle_array_expr value_env type_env (typ_symbol, size_expr, init_expr) pos
+    =
+  let ty = check_look_ty (type_env, typ_symbol, pos) in
+  match ty with
+  | Array (value_ty, _) ->
+      let { ty = size_ty; translated_expr = { pos = size_pos; _ } } =
+        transExpr (value_env, type_env, size_expr)
+      and { ty = init_ty; translated_expr = { pos = init_pos; _ } } =
+        transExpr (value_env, type_env, init_expr)
+      in
+      let _ = expecting_int size_ty size_pos
+      and _ = expecting_ty value_ty init_ty init_pos in
+      { ty; translated_expr = { pos; translated_expr = () } }
+  | ty ->
+      TigerError.semant_error
+        (Printf.sprintf "Expected array type, found %s" (Types.show_ty ty), pos)
+
+
+and handle_call_expr value_env type_env (func, args) pos =
+  let entry = check_look_env (value_env, func, pos) in
+  match entry with
+  | Env.FunEntry { argTypes; return_type } ->
+      let args_checked =
+        List.map (fun arg -> transExpr (value_env, type_env, arg)) args
+      in
+      type_check_args argTypes (List.map (fun arg -> arg.ty) args_checked) pos ;
+      { translated_expr = { translated_expr = (); pos }; ty = return_type }
+  | other ->
+      TigerError.semant_error
+        ( "Variable "
+          ^ Symbol.name func
+          ^ " is expected to be function, but found "
+          ^ Env.show_envEntry other
+        , pos )
+
+
+and handle_binary_expr value_env type_env (left, right, op) pos =
+  transBinary
+    ( value_env
+    , type_env
+    , Syntax.Expr { expr = Syntax.BinExpr { left; right; op }; pos } )
+
+
+and handle_record_expr value_env type_env (typ, fields) pos =
+  let record_ty = check_look_ty (type_env, typ, pos) in
+  match record_ty with
+  | Types.Record (expected_field_types, _) ->
+      let field_exprs = List.map (fun field -> field.expr) fields in
+      let checked_fields =
+        List.map
+          (fun field_expr -> transExpr (value_env, type_env, field_expr))
+          field_exprs
+      in
+      let field_names_with_types =
+        List.map
+          (fun (field, checked_field) ->
+            (field.symbol, checked_field.ty, field.pos) )
+          (List.combine fields checked_fields)
+      in
+      let _ =
+        type_check_fields field_names_with_types expected_field_types typ pos
+      in
+      { translated_expr = { translated_expr = (); pos }; ty = record_ty }
+  | found_ty ->
+      TigerError.semant_error
+        ( "Type "
+          ^ Symbol.name typ
+          ^ " is "
+          ^ Types.show_ty found_ty
+          ^ ", but expected a record"
+        , pos )
