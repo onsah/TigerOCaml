@@ -4,6 +4,7 @@ open Syntax
 open Types
 open Printf
 open Env
+open Utils
 
 let expecting_ty expected_ty given_ty pos =
   match expected_ty == given_ty with
@@ -487,8 +488,7 @@ and trans_decl value_env type_env = function
       in
       let _ = expecting_ty return_ty body_ty body_pos in
       (value_env, type_env)
-  | _ ->
-      TigerError.notImplemented ()
+  | _ -> __ ()
 
 
 and trans_ty type_env = function

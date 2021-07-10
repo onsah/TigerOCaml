@@ -5,3 +5,7 @@
  (libraries menhirLib core symbol lexer unitActionsParser syntax semant
    translated)
  (modules TigerC))
+
+(library
+ (name utils)
+ (modules Utils))

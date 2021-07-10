@@ -7,8 +7,6 @@ module TigerError = struct
 
   let unreachable () = raise (Failure "Unreachable")
 
-  let notImplemented () = raise (Failure "Not implemented")
-
   let lexError prefix chr line pos =
     match chr with
     | Some chr ->
