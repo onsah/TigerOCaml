@@ -19,6 +19,17 @@ let expecting_ty expected_ty given_ty pos =
 
 let expecting_int = expecting_ty Types.Int
 
+(* Returns whether an assignment to a value type checks *)
+let assignment_type_checks lvalue_ty value_ty =
+  match (lvalue_ty, value_ty) with
+  | lvalue_ty, value_ty when lvalue_ty == value_ty ->
+      true
+  | Record _, Nil ->
+      true
+  | _ ->
+      false
+
+
 let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) =
   match expr with
   | Syntax.IntExpr _ ->
@@ -223,14 +234,19 @@ and trans_decls value_env type_env = function
 and trans_decl value_env type_env = function
   | VarDecl { name; typ; value; _ } ->
       let { ty = value_ty; _ } = trans_expr (value_env, type_env, value) in
-      let value_env = Symbol.enter (value_env, name, VarEntry value_ty) in
       ( match typ with
       | None ->
+          (* Infer the type from right hand side *)
+          let value_env = Symbol.enter (value_env, name, VarEntry value_ty) in
           (value_env, type_env)
       | Some (Type { symbol; pos }) ->
           let decl_ty = check_look_ty (type_env, symbol, pos) in
-          ( match decl_ty == value_ty with
+          ( match assignment_type_checks decl_ty value_ty with
           | true ->
+              (* Assigned value can be nil, therefore we use the declared type *)
+              let value_env =
+                Symbol.enter (value_env, name, VarEntry decl_ty)
+              in
               (value_env, type_env)
           | false ->
               TigerError.semant_error
@@ -324,12 +340,10 @@ and handle_assign_expr value_env type_env var expr pos =
   and { translated_expr = _; ty = expr_ty } =
     trans_expr (value_env, type_env, expr)
   in
-  match (var_ty, expr_ty) with
-  | var_ty, expr_ty when var_ty == expr_ty ->
+  match assignment_type_checks var_ty expr_ty with
+  | true ->
       { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-  | Record _, Nil ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-  | _ ->
+  | false ->
       TigerError.semant_error
         ( Printf.sprintf
             "Type mismatch, assigned variable has type %s, but value is of \
