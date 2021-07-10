@@ -213,9 +213,10 @@ and handle_seq_expr value_env type_env exprs pos =
 and handle_assign_expr value_env type_env var expr pos =
   let { translated_expr = _; ty = var_ty } = trans_var value_env type_env var
   and { translated_expr = _; ty = expr_ty } = transExpr (value_env, type_env, expr) in
-  match var_ty == expr_ty with
-  | true -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
-  | false ->
+  match (var_ty, expr_ty) with
+  | (var_ty, expr_ty) when var_ty == expr_ty -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | (Record _, Nil) -> { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+  | _ ->
     TigerError.semant_error
       ( Printf.sprintf
           "Type mismatch, assigned variable has type %s, but value is of type %s"

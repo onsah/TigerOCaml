@@ -18,6 +18,11 @@ and field =
   }
 [@@deriving show]
 
+let is_record ty =
+  match ty with
+  | Record _ -> true 
+  | _ -> false
+
 let find_field record field_id =
   List.find_opt (fun rec_field -> rec_field.field_id = field_id) record
 ;;
