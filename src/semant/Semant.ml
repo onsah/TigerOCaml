@@ -10,7 +10,7 @@ let expecting_ty expected_ty given_ty pos =
       ()
   | false ->
       TigerError.semant_error
-        ( Printf.sprintf
+        ( sprintf
             "Type mismatch: Expected type %s, found %s"
             (Types.show_ty expected_ty)
             (Types.show_ty given_ty)
@@ -70,7 +70,7 @@ and check_look_env (env, name, pos) =
       look
   | None ->
       TigerError.semant_error
-        ("Variable " ^ Symbol.name name ^ " not found", pos)
+        (sprintf "Variable %s not found" (Symbol.name name), pos)
 
 
 and check_look_ty (env, name, pos) =
@@ -79,7 +79,7 @@ and check_look_ty (env, name, pos) =
       look
   | None ->
       TigerError.semant_error
-        ("Variable " ^ Symbol.name name ^ " not found", pos)
+        (sprintf "Variable %s not found" (Symbol.name name), pos)
 
 
 and type_check_args arg_types args pos =
@@ -94,17 +94,17 @@ and type_check_args arg_types args pos =
       ( match any_unmatched with
       | Some (arg_type, arg) ->
           TigerError.semant_error
-            ( "Types "
-              ^ Types.show_ty arg_type
-              ^ " and "
-              ^ Types.show_ty arg
-              ^ " are different"
+            ( sprintf
+                "Type mismatch: function takes %s but an expression of type %s \
+                 is given"
+                (Types.show_ty arg_type)
+                (Types.show_ty arg)
             , pos )
       | None ->
           () )
   | false ->
       TigerError.semant_error
-        ( Printf.sprintf
+        ( sprintf
             "Function takes %s arguments, but given %s"
             (string_of_int arg_types_len)
             (string_of_int args_len)
@@ -193,14 +193,14 @@ and trans_var value_env type_env var =
               { translated_expr = { translated_expr = (); pos }; ty = field_ty }
           | None ->
               TigerError.semant_error
-                ( Printf.sprintf
+                ( sprintf
                     "Field %s does not exist on type %s"
                     (Symbol.name field_id)
                     (Types.show_ty var_ty)
                 , pos ) )
       | _ ->
           TigerError.semant_error
-            ( Printf.sprintf
+            ( sprintf
                 "Variable %s is not a record, field accesses can only be done \
                  to records"
                 (Syntax.show_var var)
@@ -216,7 +216,7 @@ and trans_var value_env type_env var =
           { translated_expr = { translated_expr = (); pos }; ty }
       | _ ->
           TigerError.semant_error
-            ( Printf.sprintf
+            ( sprintf
                 "Variable %s is not an array, subscript accesses can only be \
                  done to arrays"
                 (Syntax.show_var var)
@@ -250,7 +250,7 @@ and trans_decl value_env type_env = function
               (value_env, type_env)
           | false ->
               TigerError.semant_error
-                ( Printf.sprintf
+                ( sprintf
                     "Declared type is %s but right hand side is the type %s"
                     (Types.show_ty decl_ty)
                     (Types.show_ty value_ty)
@@ -345,7 +345,7 @@ and handle_assign_expr value_env type_env var expr pos =
       { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
   | false ->
       TigerError.semant_error
-        ( Printf.sprintf
+        ( sprintf
             "Type mismatch, assigned variable has type %s, but value is of \
              type %s"
             (Types.show_ty var_ty)
@@ -375,7 +375,7 @@ and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
         }
       else
         TigerError.semant_error
-          ( Printf.sprintf
+          ( sprintf
               "If arms does not match. Then arm is type of %s and else is %s"
               (Types.show_ty then_ty)
               (Types.show_ty else_ty)
@@ -401,7 +401,7 @@ and handle_while_expr value_env type_env (cond, body) pos =
       { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
   | body_ty ->
       TigerError.semant_error
-        ( Printf.sprintf
+        ( sprintf
             "Body of a while must produce no value, which means it must return \
              unit. But this body has type %s"
             (Types.show_ty body_ty)
@@ -425,7 +425,7 @@ and handle_for_expr value_env type_env (var, from, to', body) pos =
       { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
   | body_ty ->
       TigerError.semant_error
-        ( Printf.sprintf
+        ( sprintf
             "Body of a for must produce no value, which means it must return \
              unit. But this body has type %s"
             (Types.show_ty body_ty)
@@ -452,7 +452,7 @@ and handle_array_expr value_env type_env (typ_symbol, size_expr, init_expr) pos
       { ty; translated_expr = { pos; translated_expr = () } }
   | ty ->
       TigerError.semant_error
-        (Printf.sprintf "Expected array type, found %s" (Types.show_ty ty), pos)
+        (sprintf "Expected array type, found %s" (Types.show_ty ty), pos)
 
 
 and handle_call_expr value_env type_env (func, args) pos =
@@ -466,10 +466,10 @@ and handle_call_expr value_env type_env (func, args) pos =
       { translated_expr = { translated_expr = (); pos }; ty = return_type }
   | other ->
       TigerError.semant_error
-        ( "Variable "
-          ^ Symbol.name func
-          ^ " is expected to be function, but found "
-          ^ Env.show_envEntry other
+        ( sprintf
+            "Variable %s is expected to be function, but found %s "
+            (Symbol.name func)
+            (Env.show_envEntry other)
         , pos )
 
 
@@ -483,7 +483,7 @@ and handle_binary_expr value_env type_env (left, right, op) pos =
           { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
       | false ->
           TigerError.semant_error
-            ( Printf.sprintf
+            ( sprintf
                 "Type mismatch. Types should be same for equality. Left \
                  expression is of type %s and right is %s "
                 (Types.show_ty left_ty)
@@ -522,11 +522,10 @@ and handle_record_expr value_env type_env (typ, fields) pos =
       { translated_expr = { translated_expr = (); pos }; ty = record_ty }
   | found_ty ->
       TigerError.semant_error
-        ( "Type "
-          ^ Symbol.name typ
-          ^ " is "
-          ^ Types.show_ty found_ty
-          ^ ", but expected a record"
+        ( sprintf
+            "Type mismatch: Expected record but type %s is %s"
+            (Symbol.name typ)
+            (Types.show_ty found_ty)
         , pos )
 
 
