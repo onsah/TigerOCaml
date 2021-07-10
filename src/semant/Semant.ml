@@ -361,12 +361,11 @@ and trans_var value_env type_env var =
   | SimpleVar { symbol; pos } ->
       let value_entry = check_look_env (value_env, symbol, pos) in
       (* It must be a var *)
-      (
-        ( match value_entry with
-        | VarEntry ty ->
-            { translated_expr = { translated_expr = (); pos }; ty }
-        | FunEntry _ ->
-            TigerError.semant_error ("Functions can't be an lvalue", pos) ))
+      ( match value_entry with
+      | VarEntry ty ->
+          { translated_expr = { translated_expr = (); pos }; ty }
+      | FunEntry _ ->
+          TigerError.semant_error ("Functions can't be an lvalue", pos) )
   | FieldVar { var; symbol; pos } ->
       let { translated_expr = _; ty = var_ty } =
         trans_var value_env type_env var
@@ -488,7 +487,8 @@ and trans_decl value_env type_env = function
       in
       let _ = expecting_ty return_ty body_ty body_pos in
       (value_env, type_env)
-  | _ -> __ ()
+  | _ ->
+      __ ()
 
 
 and trans_ty type_env = function
