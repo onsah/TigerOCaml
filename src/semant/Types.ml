@@ -1,4 +1,4 @@
-(* All unit ref's are different than other. Used for unqiuely differentiating each type *)
+(** All unit ref's are different than other. Used for unqiuely differentiating each type *)
 type unique = unit ref [@@deriving show]
 
 type ty =
@@ -7,9 +7,8 @@ type ty =
   | Record of field list * unique
   | Array of ty * unique
   | Nil
+  | Name of Symbol.symbol * ty option ref (** Name is used as a placeholder for recursive types and forward declarations*)
   | Unit
-  (* Used as a placeholder for recursive types and forward declarations*)
-  | Name of Symbol.symbol * ty option ref
 [@@deriving show]
 
 and field =

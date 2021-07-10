@@ -21,7 +21,7 @@ let expecting_ty expected_ty given_ty pos =
 
 let expecting_int = expecting_ty Types.Int
 
-(* Returns whether an assignment to a value type checks *)
+(** Returns whether an assignment to the value type checks *)
 let assignment_type_checks lvalue_ty value_ty =
   match (lvalue_ty, value_ty) with
   | lvalue_ty, value_ty when lvalue_ty == value_ty ->
@@ -79,7 +79,7 @@ let type_check_args arg_types args pos =
         , pos )
 
 
-(* This function first combines both given and expected names, than zips it with their types if provided.field_id
+(** This function first combines both given and expected names, than zips it with their types if provided.field_id
    This way we get a tuple list of (name, given_record, expected_record) for each such tuple:
    1- both exists and equal -> type check
    2- both exists but are different types -> type mismatch
