@@ -1,5 +1,7 @@
 type symbol = Symbol of (string * int) [@@deriving show]
 
+let show_symbol = function Symbol (str, _) -> Printf.sprintf "%s" str
+
 let nextSymbolId = ref 0
 
 let getNextSymbolId () =

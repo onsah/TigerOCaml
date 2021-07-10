@@ -63,7 +63,7 @@ let () =
   match args with
   | _ :: path :: _ ->
       let expr = parse path in
-      let _ = Printf.printf "%s\n" (Syntax.show_expr expr) in
+      let () = Printf.printf "%s\n" (Syntax.show_expr expr) in
       let typed_expr = Semant.type_check expr in
       Printf.printf "%s\n" (Translated.show_typedExpr typed_expr)
   | _ ->

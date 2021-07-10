@@ -23,7 +23,7 @@ let expecting_int = expecting_ty Types.Int
 
 (** Returns whether an assignment to the value type checks *)
 let assignment_type_checks lvalue_ty value_ty =
-  match (lvalue_ty, value_ty) with
+  match (actual_ty lvalue_ty, actual_ty value_ty) with
   | lvalue_ty, value_ty when lvalue_ty == value_ty ->
       true
   | Record _, Nil ->
@@ -47,7 +47,7 @@ let check_look_ty (env, name, pos) =
       look
   | None ->
       TigerError.semant_error
-        (sprintf "Variable %s not found" (Symbol.name name), pos)
+        (sprintf "Type %s not found" (Symbol.name name), pos)
 
 
 let type_check_args arg_types args pos =
@@ -109,7 +109,7 @@ let type_check_fields given_fields expected_fields record_name pos =
     (fun (name, given_field_opt, expected_field_opt) ->
       match (given_field_opt, expected_field_opt) with
       | Some (_, given_ty, _), Some { field_ty = expected_ty; _ } ->
-          if given_ty = expected_ty
+          if assignment_type_checks expected_ty given_ty
           then (name, given_ty)
           else
             TigerError.semant_error
@@ -296,7 +296,7 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) =
         expecting_int ty_right pos_right ;
         { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
   and handle_record_expr value_env type_env (typ, fields) pos =
-    let record_ty = check_look_ty (type_env, typ, pos) in
+    let record_ty = actual_ty (check_look_ty (type_env, typ, pos)) in
     match record_ty with
     | Types.Record (expected_field_types, _) ->
         let field_exprs = List.map (fun field -> field.expr) fields in
@@ -363,19 +363,22 @@ and trans_var value_env type_env var =
       (* It must be a var *)
       ( match value_entry with
       | VarEntry ty ->
-          { translated_expr = { translated_expr = (); pos }; ty }
+          { translated_expr = { translated_expr = (); pos }; ty = actual_ty ty }
       | FunEntry _ ->
           TigerError.semant_error ("Functions can't be an lvalue", pos) )
   | FieldVar { var; symbol; pos } ->
       let { translated_expr = _; ty = var_ty } =
         trans_var value_env type_env var
       in
+      let var_ty = actual_ty var_ty in
       ( match var_ty with
       | Record (fields, _) ->
           let field_id = symbol in
           ( match Types.find_field fields field_id with
           | Some { field_ty; _ } ->
-              { translated_expr = { translated_expr = (); pos }; ty = field_ty }
+              { translated_expr = { translated_expr = (); pos }
+              ; ty = actual_ty field_ty
+              }
           | None ->
               TigerError.semant_error
                 ( sprintf
@@ -394,11 +397,12 @@ and trans_var value_env type_env var =
       let { translated_expr = _; ty = var_ty } =
         trans_var value_env type_env var
       in
+      let var_ty = actual_ty var_ty in
       ( match var_ty with
       | Array (ty, _) ->
           let trans_expr = trans_expr (value_env, type_env, expr) in
           let _ = expecting_int trans_expr.ty trans_expr.translated_expr.pos in
-          { translated_expr = { translated_expr = (); pos }; ty }
+          { translated_expr = { translated_expr = (); pos }; ty = actual_ty ty }
       | _ ->
           TigerError.semant_error
             ( sprintf
@@ -440,9 +444,62 @@ and trans_decl value_env type_env = function
                     (Types.show_ty decl_ty)
                     (Types.show_ty value_ty)
                 , pos ) ) )
-  | TypeDecls [ TypeDecl { name; decl; _ } ] ->
+  (* | TypeDecls [ TypeDecl { name; decl; _ } ] ->
       let ty = trans_ty type_env decl in
       let type_env = Symbol.enter (type_env, name, ty) in
+      (value_env, type_env) *)
+  | TypeDecls type_decls ->
+      let decl_names =
+        List.map (function TypeDecl { name; _ } -> name) type_decls
+      in
+      (* chcek for duplicates *)
+      let _ =
+        match type_decls with
+        | TypeDecl { pos; _ } :: _ ->
+            if has_duplicates type_decls
+            then
+              (* TODO: tell which name is duplicate *)
+              TigerError.semant_error
+                ("Consecutive type declarations can't have duplicates", pos)
+        | [] ->
+            ()
+      in
+      let ty_refs = List.init (List.length type_decls) (fun _ -> ref None) in
+      let decl_name_types =
+        List.map
+          (fun (name, ty_ref) -> Types.Name (name, ty_ref))
+          (List.combine decl_names ty_refs)
+      in
+      (* Put name types to handle recursion stuff *)
+      let type_env =
+        Symbol.enter_all (type_env, List.combine decl_names decl_name_types)
+      in
+      let transed_tys =
+        List.map
+          (function TypeDecl { decl; _ } -> trans_ty type_env decl)
+          type_decls
+      in
+      (* Put resolved types into names *)
+      let _ =
+        List.map
+          (fun (ty_ref, ty) -> ty_ref := Some ty)
+          (List.combine ty_refs transed_tys)
+      in
+      (* Check for loops in types *)
+      (* TODO: give the name of the type *)
+      let _ =
+        match type_decls with
+        | TypeDecl { pos; _ } :: _ ->
+            let has_loops =
+              Option.is_some (List.find_opt has_loop transed_tys)
+            in
+            if has_loops
+            then
+              TigerError.semant_error ("Error, type definition is circular", pos)
+        | [] ->
+            ()
+      in
+
       (value_env, type_env)
   | FunctionDecls [ FunDecl { name; params; return_type; body; _ } ] ->
       let param_names_with_tys =
