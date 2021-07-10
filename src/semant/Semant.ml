@@ -4,10 +4,6 @@ open Syntax
 open Types
 open Printf
 
-type valueEnv = Env.envEntry Symbol.table
-
-type typeEnv = Env.ty Symbol.table
-
 let expecting_ty expected_ty given_ty pos =
   match expected_ty == given_ty with
   | true ->
@@ -23,7 +19,7 @@ let expecting_ty expected_ty given_ty pos =
 
 let expecting_int = expecting_ty Types.Int
 
-let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
+let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) =
   match expr with
   | Syntax.IntExpr _ ->
       { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
@@ -55,39 +51,6 @@ let rec transExpr (value_env, type_env, Syntax.Expr { expr; pos }) =
       handle_let_expr value_env type_env (decls, body) pos
   | Syntax.ArrayExpr { typ; size; init_value } ->
       handle_array_expr value_env type_env (typ, size, init_value) pos
-
-
-and transBinary = function
-  | ( value_env
-    , type_env
-    , Syntax.Expr { expr = Syntax.BinExpr { left; right; op }; pos } ) ->
-    (* We will use this in the future *)
-    ( match op with
-    | BinaryEq | BinaryLtgt ->
-        let { ty = left_ty; _ } = transExpr (value_env, type_env, left)
-        and { ty = right_ty; _ } = transExpr (value_env, type_env, right) in
-        ( match left_ty == right_ty with
-        | true ->
-            { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
-        | false ->
-            TigerError.semant_error
-              ( Printf.sprintf
-                  "Type mismatch. Types should be same for equality. Left \
-                   expression is of type %s and right is %s "
-                  (Types.show_ty left_ty)
-                  (Types.show_ty right_ty)
-              , pos ) )
-    | _ ->
-        let { ty = ty_left; translated_expr = { pos = pos_left; _ } } =
-          transExpr (value_env, type_env, left)
-        and { ty = ty_right; translated_expr = { pos = pos_right; _ } } =
-          transExpr (value_env, type_env, right)
-        in
-        expecting_int ty_left pos_left ;
-        expecting_int ty_right pos_right ;
-        { translated_expr = { translated_expr = (); pos }; ty = Types.Int } )
-  | _ ->
-      TigerError.notImplemented ()
 
 
 and check_look_env (env, name, pos) =
@@ -196,8 +159,6 @@ and type_check_fields given_fields expected_fields record_name pos =
     names_with_types
 
 
-and type_check expr = transExpr (Env.baseValueEnv, Env.baseTypeEnv, expr)
-
 and trans_var value_env type_env var =
   match var with
   | SimpleVar { symbol; pos } ->
@@ -239,7 +200,7 @@ and trans_var value_env type_env var =
       in
       ( match var_ty with
       | Array (ty, _) ->
-          let trans_expr = transExpr (value_env, type_env, expr) in
+          let trans_expr = trans_expr (value_env, type_env, expr) in
           let _ = expecting_int trans_expr.ty trans_expr.translated_expr.pos in
           { translated_expr = { translated_expr = (); pos }; ty }
       | _ ->
@@ -261,7 +222,7 @@ and trans_decls value_env type_env = function
 
 and trans_decl value_env type_env = function
   | VarDecl { name; typ; value; _ } ->
-      let { ty = value_ty; _ } = transExpr (value_env, type_env, value) in
+      let { ty = value_ty; _ } = trans_expr (value_env, type_env, value) in
       let value_env = Symbol.enter (value_env, name, VarEntry value_ty) in
       ( match typ with
       | None ->
@@ -321,7 +282,7 @@ and trans_decl value_env type_env = function
       let { ty = body_ty
           ; translated_expr = { pos = body_pos; translated_expr = () }
           } =
-        transExpr (value_env', type_env, body)
+        trans_expr (value_env', type_env, body)
       in
       let _ = expecting_ty return_ty body_ty body_pos in
       (value_env, type_env)
@@ -352,16 +313,16 @@ and handle_seq_expr value_env type_env exprs pos =
   | [] ->
       { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
   | [ expr ] ->
-      transExpr (value_env, type_env, expr)
+      trans_expr (value_env, type_env, expr)
   | expr :: exprs ->
-      let _ = transExpr (value_env, type_env, expr) in
+      let _ = trans_expr (value_env, type_env, expr) in
       handle_seq_expr value_env type_env exprs pos
 
 
 and handle_assign_expr value_env type_env var expr pos =
   let { translated_expr = _; ty = var_ty } = trans_var value_env type_env var
   and { translated_expr = _; ty = expr_ty } =
-    transExpr (value_env, type_env, expr)
+    trans_expr (value_env, type_env, expr)
   in
   match (var_ty, expr_ty) with
   | var_ty, expr_ty when var_ty == expr_ty ->
@@ -384,14 +345,14 @@ and handle_lvalue_expr value_env type_env lvalue =
 
 and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
   let { translated_expr = { pos; _ }; ty = cond_ty } =
-    transExpr (value_env, type_env, cond)
+    trans_expr (value_env, type_env, cond)
   in
   let _ = expecting_int cond_ty pos in
-  let { ty = then_ty; _ } = transExpr (value_env, type_env, then_arm) in
+  let { ty = then_ty; _ } = trans_expr (value_env, type_env, then_arm) in
   match else_arm_opt with
   | Some else_arm ->
       let { translated_expr = { pos; _ }; ty = else_ty } =
-        transExpr (value_env, type_env, else_arm)
+        trans_expr (value_env, type_env, else_arm)
       in
       if then_ty = else_ty
       then
@@ -415,11 +376,11 @@ and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
 
 and handle_while_expr value_env type_env (cond, body) pos =
   let { translated_expr = { pos = cond_pos; _ }; ty = cond_ty } =
-    transExpr (value_env, type_env, cond)
+    trans_expr (value_env, type_env, cond)
   in
   let _ = expecting_int cond_ty cond_pos in
   let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-    transExpr (value_env, type_env, body)
+    trans_expr (value_env, type_env, body)
   in
   match body_ty with
   | Types.Unit ->
@@ -435,15 +396,15 @@ and handle_while_expr value_env type_env (cond, body) pos =
 
 and handle_for_expr value_env type_env (var, from, to', body) pos =
   let { ty = from_ty; translated_expr = { pos = from_pos; _ } } =
-    transExpr (value_env, type_env, from)
+    trans_expr (value_env, type_env, from)
   and { ty = to_ty; translated_expr = { pos = to_pos; _ } } =
-    transExpr (value_env, type_env, to')
+    trans_expr (value_env, type_env, to')
   in
   let _ = expecting_int from_ty from_pos
   and _ = expecting_int to_ty to_pos in
   let value_env = Symbol.enter (value_env, var, VarEntry Types.Int) in
   let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-    transExpr (value_env, type_env, body)
+    trans_expr (value_env, type_env, body)
   in
   match body_ty with
   | Types.Unit ->
@@ -459,7 +420,7 @@ and handle_for_expr value_env type_env (var, from, to', body) pos =
 
 and handle_let_expr value_env type_env (decls, body) _pos =
   let value_env, type_env = trans_decls value_env type_env decls in
-  transExpr (value_env, type_env, body)
+  trans_expr (value_env, type_env, body)
 
 
 and handle_array_expr value_env type_env (typ_symbol, size_expr, init_expr) pos
@@ -468,9 +429,9 @@ and handle_array_expr value_env type_env (typ_symbol, size_expr, init_expr) pos
   match ty with
   | Array (value_ty, _) ->
       let { ty = size_ty; translated_expr = { pos = size_pos; _ } } =
-        transExpr (value_env, type_env, size_expr)
+        trans_expr (value_env, type_env, size_expr)
       and { ty = init_ty; translated_expr = { pos = init_pos; _ } } =
-        transExpr (value_env, type_env, init_expr)
+        trans_expr (value_env, type_env, init_expr)
       in
       let _ = expecting_int size_ty size_pos
       and _ = expecting_ty value_ty init_ty init_pos in
@@ -485,7 +446,7 @@ and handle_call_expr value_env type_env (func, args) pos =
   match entry with
   | Env.FunEntry { argTypes; return_type } ->
       let args_checked =
-        List.map (fun arg -> transExpr (value_env, type_env, arg)) args
+        List.map (fun arg -> trans_expr (value_env, type_env, arg)) args
       in
       type_check_args argTypes (List.map (fun arg -> arg.ty) args_checked) pos ;
       { translated_expr = { translated_expr = (); pos }; ty = return_type }
@@ -499,10 +460,30 @@ and handle_call_expr value_env type_env (func, args) pos =
 
 
 and handle_binary_expr value_env type_env (left, right, op) pos =
-  transBinary
-    ( value_env
-    , type_env
-    , Syntax.Expr { expr = Syntax.BinExpr { left; right; op }; pos } )
+  match op with
+  | BinaryEq | BinaryLtgt ->
+      let { ty = left_ty; _ } = trans_expr (value_env, type_env, left)
+      and { ty = right_ty; _ } = trans_expr (value_env, type_env, right) in
+      ( match left_ty == right_ty with
+      | true ->
+          { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
+      | false ->
+          TigerError.semant_error
+            ( Printf.sprintf
+                "Type mismatch. Types should be same for equality. Left \
+                 expression is of type %s and right is %s "
+                (Types.show_ty left_ty)
+                (Types.show_ty right_ty)
+            , pos ) )
+  | _ ->
+      let { ty = ty_left; translated_expr = { pos = pos_left; _ } } =
+        trans_expr (value_env, type_env, left)
+      and { ty = ty_right; translated_expr = { pos = pos_right; _ } } =
+        trans_expr (value_env, type_env, right)
+      in
+      expecting_int ty_left pos_left ;
+      expecting_int ty_right pos_right ;
+      { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
 
 
 and handle_record_expr value_env type_env (typ, fields) pos =
@@ -512,7 +493,7 @@ and handle_record_expr value_env type_env (typ, fields) pos =
       let field_exprs = List.map (fun field -> field.expr) fields in
       let checked_fields =
         List.map
-          (fun field_expr -> transExpr (value_env, type_env, field_expr))
+          (fun field_expr -> trans_expr (value_env, type_env, field_expr))
           field_exprs
       in
       let field_names_with_types =
@@ -533,3 +514,6 @@ and handle_record_expr value_env type_env (typ, fields) pos =
           ^ Types.show_ty found_ty
           ^ ", but expected a record"
         , pos )
+
+
+let type_check expr = trans_expr (Env.baseValueEnv, Env.baseTypeEnv, expr)
