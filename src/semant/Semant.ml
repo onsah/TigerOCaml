@@ -121,7 +121,7 @@ let type_check_fields given_fields expected_fields record_name pos =
       | Some (given_name, given_ty, pos), None ->
           TigerError.semant_error
             ( sprintf
-                "Given gield %s does not exist on record on record %s"
+                "Given field %s does not exist on record on record %s"
                 (Types.show_field
                    { field_id = given_name; field_ty = given_ty } )
                 (Symbol.name record_name)
