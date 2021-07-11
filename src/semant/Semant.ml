@@ -422,13 +422,17 @@ and trans_decls value_env type_env = function
 
 
 and trans_decl value_env type_env = function
-  | VarDecl { name; typ; value; _ } ->
+  | VarDecl { name; typ; value; pos } ->
       let { ty = value_ty; _ } = trans_expr (value_env, type_env, value) in
       ( match typ with
       | None ->
-          (* Infer the type from right hand side *)
-          let value_env = Symbol.enter (value_env, name, VarEntry value_ty) in
-          (value_env, type_env)
+        (* Infer the type from right hand side *)
+        ( match value_ty with
+        | Nil ->
+            TigerError.semant_error ("Can't initialize a variable with nil without a record type specified", pos)
+        | value_ty ->
+            let value_env = Symbol.enter (value_env, name, VarEntry value_ty) in
+            (value_env, type_env) )
       | Some (Type { symbol; pos }) ->
           let decl_ty = check_look_ty (type_env, symbol, pos) in
           ( match assignment_type_checks decl_ty value_ty with
@@ -453,7 +457,8 @@ and trans_decl value_env type_env = function
       let _ =
         match type_decls with
         | TypeDecl { pos; _ } :: _ ->
-            if has_duplicates (List.map (function TypeDecl { name; _ } -> name) type_decls)
+            if has_duplicates
+                 (List.map (function TypeDecl { name; _ } -> name) type_decls)
             then
               (* TODO: tell which name is duplicate *)
               TigerError.semant_error
@@ -542,11 +547,11 @@ and trans_decl value_env type_env = function
         let _ = expecting_ty return_type body_ty body_pos in
         ()
       in
-      (* TODO: check for duplicates *)
       let _ =
         match func_decls with
         | FunDecl { pos; _ } :: _ ->
-            if has_duplicates (List.map (function FunDecl { name; _ } -> name) func_decls)
+            if has_duplicates
+                 (List.map (function FunDecl { name; _ } -> name) func_decls)
             then
               (* TODO: tell which name is duplicate *)
               TigerError.semant_error
@@ -579,64 +584,64 @@ and trans_decl value_env type_env = function
           (List.combine headers func_decls)
       in
       (value_env, type_env)
-  (* | FunctionDecls [ FunDecl { name; params; return_type; body; _ } ] ->
-      (* Process the header of a function and return params and return type *)
-      let process_header (params, return_type_opt) =
-        let param_tys =
-          List.map
-            (function
-              | TypedField field ->
-                  check_look_ty (type_env, field.typ, field.pos) )
-            params
-        in
-        let return_ty_opt =
-          Option.map
-            (function
-              | Type { symbol; pos } -> check_look_ty (type_env, symbol, pos) )
-            return_type_opt
-        in
-        let return_type =
-          match return_ty_opt with
-          | Some return_ty ->
-              return_ty
-          | None ->
-              Types.Unit
-        in
-        (param_tys, return_type)
-      in
-      let process_body param_names_with_tys return_type body =
-        let value_env' =
-          Symbol.enter_all
-            ( value_env
-            , List.map
-                (fun (name, ty) -> (name, VarEntry ty))
-                param_names_with_tys )
-        in
-        let { ty = body_ty
-            ; translated_expr = { pos = body_pos; translated_expr = () }
-            } =
-          trans_expr (value_env', type_env, body)
-        in
-        let _ = expecting_ty return_type body_ty body_pos in
-        ()
-      in
-      let param_tys, return_type = process_header (params, return_type) in
-      (* Function declaration itself will live outside the function as well, but parameters do not *)
-      let value_env =
-        Symbol.enter
-          (value_env, name, FunEntry { argTypes = param_tys; return_type })
-      in
-      let param_names_with_tys =
-        List.combine
-          (List.map (function TypedField field -> field.name) params)
-          param_tys
-      in
-      let _ = process_body param_names_with_tys return_type body in
-      (value_env, type_env) *)
-  (* | _ ->
-      __ () *)
 
 
+(* | FunctionDecls [ FunDecl { name; params; return_type; body; _ } ] ->
+    (* Process the header of a function and return params and return type *)
+    let process_header (params, return_type_opt) =
+      let param_tys =
+        List.map
+          (function
+            | TypedField field ->
+                check_look_ty (type_env, field.typ, field.pos) )
+          params
+      in
+      let return_ty_opt =
+        Option.map
+          (function
+            | Type { symbol; pos } -> check_look_ty (type_env, symbol, pos) )
+          return_type_opt
+      in
+      let return_type =
+        match return_ty_opt with
+        | Some return_ty ->
+            return_ty
+        | None ->
+            Types.Unit
+      in
+      (param_tys, return_type)
+    in
+    let process_body param_names_with_tys return_type body =
+      let value_env' =
+        Symbol.enter_all
+          ( value_env
+          , List.map
+              (fun (name, ty) -> (name, VarEntry ty))
+              param_names_with_tys )
+      in
+      let { ty = body_ty
+          ; translated_expr = { pos = body_pos; translated_expr = () }
+          } =
+        trans_expr (value_env', type_env, body)
+      in
+      let _ = expecting_ty return_type body_ty body_pos in
+      ()
+    in
+    let param_tys, return_type = process_header (params, return_type) in
+    (* Function declaration itself will live outside the function as well, but parameters do not *)
+    let value_env =
+      Symbol.enter
+        (value_env, name, FunEntry { argTypes = param_tys; return_type })
+    in
+    let param_names_with_tys =
+      List.combine
+        (List.map (function TypedField field -> field.name) params)
+        param_tys
+    in
+    let _ = process_body param_names_with_tys return_type body in
+    (value_env, type_env) *)
+(* | _ ->
+    __ () *)
 and trans_ty type_env = function
   | RecordDecl { fields; _ } ->
       let fields =
