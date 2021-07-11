@@ -240,9 +240,10 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) =
     trans_expr (value_env, type_env, body)
   and handle_array_expr
       value_env type_env (typ_symbol, size_expr, init_expr) pos =
-    let ty = check_look_ty (type_env, typ_symbol, pos) in
+    let ty = actual_ty (check_look_ty (type_env, typ_symbol, pos)) in
     match ty with
     | Array (value_ty, _) ->
+        let value_ty = actual_ty value_ty in
         let { ty = size_ty; translated_expr = { pos = size_pos; _ } } =
           trans_expr (value_env, type_env, size_expr)
         and { ty = init_ty; translated_expr = { pos = init_pos; _ } } =

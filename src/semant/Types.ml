@@ -42,8 +42,7 @@ and pp_field ppf = function
         ppf
         "{ %s: %s }"
         (Symbol.show_symbol field_id)
-        (let _ = pp_ty Format.str_formatter field_ty in
-         Format.flush_str_formatter () )
+        (show_ty field_ty)
 
 
 (* Returns a type that is not a `Name`. Extracts the underlying type if encounters a `Name` *)
