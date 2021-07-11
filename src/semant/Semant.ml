@@ -445,19 +445,15 @@ and trans_decl value_env type_env = function
                     (Types.show_ty decl_ty)
                     (Types.show_ty value_ty)
                 , pos ) ) )
-  (* | TypeDecls [ TypeDecl { name; decl; _ } ] ->
-      let ty = trans_ty type_env decl in
-      let type_env = Symbol.enter (type_env, name, ty) in
-      (value_env, type_env) *)
   | TypeDecls type_decls ->
       let decl_names =
         List.map (function TypeDecl { name; _ } -> name) type_decls
       in
-      (* chcek for duplicates *)
+      (* check for duplicates *)
       let _ =
         match type_decls with
         | TypeDecl { pos; _ } :: _ ->
-            if has_duplicates type_decls
+            if has_duplicates (List.map (function TypeDecl { name; _ } -> name) type_decls)
             then
               (* TODO: tell which name is duplicate *)
               TigerError.semant_error
@@ -502,51 +498,132 @@ and trans_decl value_env type_env = function
       in
 
       (value_env, type_env)
-  | FunctionDecls [ FunDecl { name; params; return_type; body; _ } ] ->
-      let param_names_with_tys =
+  | FunctionDecls func_decls ->
+      let process_header (params, return_type_opt) =
+        let param_tys =
+          List.map
+            (function
+              | TypedField field ->
+                  check_look_ty (type_env, field.typ, field.pos) )
+            params
+        in
+        let return_ty_opt =
+          Option.map
+            (function
+              | Type { symbol; pos } -> check_look_ty (type_env, symbol, pos) )
+            return_type_opt
+        in
+        let return_type =
+          match return_ty_opt with
+          | Some return_ty ->
+              return_ty
+          | None ->
+              Types.Unit
+        in
+        (param_tys, return_type)
+      in
+      let process_body value_env params body param_tys return_type =
+        let param_names =
+          List.map (function TypedField field -> field.name) params
+        in
+        let param_names_with_tys = List.combine param_names param_tys in
+        let value_env' =
+          Symbol.enter_all
+            ( value_env
+            , List.map
+                (fun (name, ty) -> (name, VarEntry ty))
+                param_names_with_tys )
+        in
+        let { ty = body_ty
+            ; translated_expr = { pos = body_pos; translated_expr = () }
+            } =
+          trans_expr (value_env', type_env, body)
+        in
+        let _ = expecting_ty return_type body_ty body_pos in
+        ()
+      in
+      (* TODO: check for duplicates *)
+      let headers =
         List.map
           (function
-            | TypedField { name; typ; pos; _ } ->
-                (name, check_look_ty (type_env, typ, pos)) )
-          params
+            | FunDecl { params; return_type; _ } ->
+                process_header (params, return_type) )
+          func_decls
       in
-      let return_ty_opt =
-        Option.map
+      let func_entries =
+        List.combine
+          (List.map (function FunDecl { name; _ } -> name) func_decls)
+          (List.map
+             (fun (param_tys, return_type) ->
+               FunEntry { argTypes = param_tys; return_type } )
+             headers )
+      in
+      (* Put headers into the environment *)
+      let value_env = Symbol.enter_all (value_env, func_entries) in
+      let _ =
+        List.map
           (function
-            | Type { symbol; pos } -> check_look_ty (type_env, symbol, pos) )
-          return_type
+            | (param_tys, return_type), FunDecl { params; body; _ } ->
+                process_body value_env params body param_tys return_type )
+          (List.combine headers func_decls)
       in
-      let return_ty =
-        match return_ty_opt with
-        | Some return_ty ->
-            return_ty
-        | None ->
-            Types.Unit
+      (value_env, type_env)
+  (* | FunctionDecls [ FunDecl { name; params; return_type; body; _ } ] ->
+      (* Process the header of a function and return params and return type *)
+      let process_header (params, return_type_opt) =
+        let param_tys =
+          List.map
+            (function
+              | TypedField field ->
+                  check_look_ty (type_env, field.typ, field.pos) )
+            params
+        in
+        let return_ty_opt =
+          Option.map
+            (function
+              | Type { symbol; pos } -> check_look_ty (type_env, symbol, pos) )
+            return_type_opt
+        in
+        let return_type =
+          match return_ty_opt with
+          | Some return_ty ->
+              return_ty
+          | None ->
+              Types.Unit
+        in
+        (param_tys, return_type)
       in
-      let param_tys = List.map (fun (_, ty) -> ty) param_names_with_tys in
+      let process_body param_names_with_tys return_type body =
+        let value_env' =
+          Symbol.enter_all
+            ( value_env
+            , List.map
+                (fun (name, ty) -> (name, VarEntry ty))
+                param_names_with_tys )
+        in
+        let { ty = body_ty
+            ; translated_expr = { pos = body_pos; translated_expr = () }
+            } =
+          trans_expr (value_env', type_env, body)
+        in
+        let _ = expecting_ty return_type body_ty body_pos in
+        ()
+      in
+      let param_tys, return_type = process_header (params, return_type) in
       (* Function declaration itself will live outside the function as well, but parameters do not *)
       let value_env =
         Symbol.enter
-          ( value_env
-          , name
-          , FunEntry { argTypes = param_tys; return_type = return_ty } )
+          (value_env, name, FunEntry { argTypes = param_tys; return_type })
       in
-      let value_env' =
-        Symbol.enter_all
-          ( value_env
-          , List.map
-              (fun (name, ty) -> (name, VarEntry ty))
-              param_names_with_tys )
+      let param_names_with_tys =
+        List.combine
+          (List.map (function TypedField field -> field.name) params)
+          param_tys
       in
-      let { ty = body_ty
-          ; translated_expr = { pos = body_pos; translated_expr = () }
-          } =
-        trans_expr (value_env', type_env, body)
-      in
-      let _ = expecting_ty return_ty body_ty body_pos in
-      (value_env, type_env)
-  | _ ->
-      __ ()
+      let _ = process_body param_names_with_tys return_type body in
+      (value_env, type_env) *)
+  (* | _ ->
+      __ () *)
 
 
 and trans_ty type_env = function
