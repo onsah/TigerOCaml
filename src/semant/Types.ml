@@ -10,12 +10,11 @@ type ty =
   | Name of Symbol.symbol * ty option ref
       (** Name is used as a placeholder for recursive types and forward declarations*)
   | Unit
-[@@deriving show]
+
 and field =
   { field_id : Symbol.symbol
   ; field_ty : ty
   }
-[@@deriving show]
 
 (* TODO: make it check until a loop occurs *)
 let rec pp_ty ppf = function
@@ -26,14 +25,19 @@ let rec pp_ty ppf = function
   (* TODO *)
   | Record (fields, _) ->
       Format.pp_print_list (fun ppf field -> pp_field ppf field) ppf fields
-  | Array (_, _) ->
-      Format.fprintf ppf "array[]"
+  | Array (item_ty, _) ->
+      Format.fprintf ppf "array[%s]" (show_ty item_ty)
   | Nil ->
       Format.fprintf ppf "nil"
   | Unit ->
       Format.fprintf ppf "()"
   | Name _ ->
       Format.fprintf ppf "<name>"
+
+
+and show_ty ty =
+  let _ = pp_ty Format.str_formatter ty in
+  Format.flush_str_formatter ()
 
 
 and pp_field ppf = function
@@ -43,6 +47,11 @@ and pp_field ppf = function
         "{ %s: %s }"
         (Symbol.show_symbol field_id)
         (show_ty field_ty)
+
+
+and show_field field =
+  let _ = pp_field Format.str_formatter field in
+  Format.flush_str_formatter ()
 
 
 (* Returns a type that is not a `Name`. Extracts the underlying type if encounters a `Name` *)
