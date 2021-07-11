@@ -17,22 +17,39 @@ and field =
   }
 
 (* TODO: make it check until a loop occurs *)
-let rec pp_ty ppf = function
-  | Int ->
-      Format.fprintf ppf "int"
-  | String ->
-      Format.fprintf ppf "string"
-  (* TODO *)
-  | Record (fields, _) ->
-      Format.pp_print_list (fun ppf field -> pp_field ppf field) ppf fields
-  | Array (item_ty, _) ->
-      Format.fprintf ppf "array[%s]" (show_ty item_ty)
-  | Nil ->
-      Format.fprintf ppf "nil"
-  | Unit ->
-      Format.fprintf ppf "()"
-  | Name _ ->
-      Format.fprintf ppf "<name>"
+let rec pp_ty ppf ty = pp_ty_checked ~first:true ppf ty ty
+
+(* first is just to prevent first check *)
+and pp_ty_checked ?(first = false) ppf check_ty ty =
+  match (not first) && check_ty == ty with
+  | true ->
+      Format.fprintf ppf "<recursive>"
+  | false ->
+    ( match ty with
+    | Int ->
+        Format.fprintf ppf "int"
+    | String ->
+        Format.fprintf ppf "string"
+    | Record (fields, _) ->
+        Format.fprintf ppf "{ " ;
+        Format.pp_print_list
+          ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+          (fun ppf field -> pp_field_checked ppf check_ty field)
+          ppf
+          fields ;
+        Format.fprintf ppf " }"
+    | Array (item_ty, _) ->
+        Format.fprintf ppf "array[%s]" (show_ty item_ty)
+    | Nil ->
+        Format.fprintf ppf "nil"
+    | Unit ->
+        Format.fprintf ppf "()"
+    | Name (_, ty_opt) ->
+      ( match ty_opt.contents with
+      | Some ty ->
+          pp_ty_checked ppf check_ty ty
+      | None ->
+          Format.fprintf ppf "<unbound-name>" ) )
 
 
 and show_ty ty =
@@ -40,11 +57,22 @@ and show_ty ty =
   Format.flush_str_formatter ()
 
 
+and pp_field_checked ppf check_ty field =
+  let { field_id; field_ty } = field in
+  match check_ty == field_ty with
+  | true ->
+      Format.fprintf ppf "<recursive>"
+  | false ->
+      Symbol.pp_symbol ppf field_id ;
+      Format.fprintf ppf ": " ;
+      pp_ty_checked ppf check_ty field_ty
+
+
 and pp_field ppf = function
   | { field_id; field_ty } ->
       Format.fprintf
         ppf
-        "{ %s: %s }"
+        "%s: %s"
         (Symbol.show_symbol field_id)
         (show_ty field_ty)
 
