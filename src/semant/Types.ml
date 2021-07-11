@@ -39,7 +39,7 @@ and pp_ty_checked ?(first = false) ppf check_ty ty =
           fields ;
         Format.fprintf ppf " }"
     | Array (item_ty, _) ->
-        Format.fprintf ppf "array[%s]" (show_ty item_ty)
+        Format.fprintf ppf "array of %s" (show_ty item_ty)
     | Nil ->
         Format.fprintf ppf "nil"
     | Unit ->
