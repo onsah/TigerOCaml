@@ -12,11 +12,6 @@ let baseTypes =
   [ (Symbol.symbol "int", Types.Int)
   ; (Symbol.symbol "string", Types.String)
   ; (Symbol.symbol "unit", Types.Unit)
-  ; (* TODO: remove this used for testing*)
-    ( Symbol.symbol "foo"
-    , Types.Record
-        ([ { field_id = Symbol.symbol "bar"; field_ty = Types.Int } ], ref ())
-    )
   ]
 
 
