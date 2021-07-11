@@ -6,8 +6,23 @@ open Printf
 open Env
 open Utils
 
+(** Returns whether an assignment to the value type checks *)
+let assignment_type_checks lvalue_ty value_ty =
+  match (actual_ty lvalue_ty, actual_ty value_ty) with
+  | lvalue_ty, value_ty when lvalue_ty == value_ty ->
+      true
+  | Record _, Nil ->
+      true
+  | _ ->
+      false
+
+
+let is_types_compatible ty1 ty2 =
+  assignment_type_checks ty1 ty2 || assignment_type_checks ty2 ty1
+
+
 let expecting_ty expected_ty given_ty pos =
-  match expected_ty == given_ty with
+  match assignment_type_checks expected_ty given_ty with
   | true ->
       ()
   | false ->
@@ -20,17 +35,6 @@ let expecting_ty expected_ty given_ty pos =
 
 
 let expecting_int = expecting_ty Types.Int
-
-(** Returns whether an assignment to the value type checks *)
-let assignment_type_checks lvalue_ty value_ty =
-  match (actual_ty lvalue_ty, actual_ty value_ty) with
-  | lvalue_ty, value_ty when lvalue_ty == value_ty ->
-      true
-  | Record _, Nil ->
-      true
-  | _ ->
-      false
-
 
 let check_look_env (env, name, pos) =
   match Symbol.look (env, name) with
@@ -57,7 +61,9 @@ let type_check_args arg_types args pos =
   | true ->
       let combined = List.combine arg_types args in
       let any_unmatched =
-        List.find_opt (fun (arg_type, arg) -> arg_type != arg) combined
+        List.find_opt
+          (fun (arg_type, arg) -> not (assignment_type_checks arg_type arg))
+          combined
       in
       ( match any_unmatched with
       | Some (arg_type, arg) ->
@@ -177,10 +183,13 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) =
         let { translated_expr = { pos; _ }; ty = else_ty } =
           trans_expr (value_env, type_env, else_arm)
         in
-        if then_ty = else_ty
+        (* Both can be nil, thus we just check for both side *)
+        if is_types_compatible then_ty else_ty
         then
           { translated_expr = { translated_expr = (); pos = if_pos }
-          ; ty = then_ty
+          ; ty =
+              (match then_ty with Nil -> else_ty | then_ty -> then_ty)
+              (* Use non-nil type if exists *)
           }
         else
           TigerError.semant_error
@@ -276,7 +285,7 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) =
     | BinaryEq | BinaryLtgt ->
         let { ty = left_ty; _ } = trans_expr (value_env, type_env, left)
         and { ty = right_ty; _ } = trans_expr (value_env, type_env, right) in
-        ( match left_ty == right_ty with
+        ( match is_types_compatible left_ty right_ty with
         | true ->
             { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
         | false ->
@@ -429,7 +438,10 @@ and trans_decl value_env type_env = function
         (* Infer the type from right hand side *)
         ( match value_ty with
         | Nil ->
-            TigerError.semant_error ("Can't initialize a variable with nil without a record type specified", pos)
+            TigerError.semant_error
+              ( "Can't initialize a variable with nil without a record type \
+                 specified"
+              , pos )
         | value_ty ->
             let value_env = Symbol.enter (value_env, name, VarEntry value_ty) in
             (value_env, type_env) )
