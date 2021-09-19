@@ -566,12 +566,6 @@ and trans_decl value_env type_env = function
             | Some name -> TigerError.semant_error
               ((Symbol.name name) ^ " is declared multiple times", pos)
             | None -> ())
-            (* if has_duplicates
-                 (List.map (function FunDecl { name; _ } -> name) func_decls)
-            then
-              (* TODO: tell which name is duplicate *)
-              TigerError.semant_error
-                ("Consecutive function declarations can't have duplicates", pos) *)
         | [] ->
             ()
       in

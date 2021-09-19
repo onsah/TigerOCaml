@@ -1,3 +1,14 @@
+## Usage
+### Build
+```
+dune build
+```
+
+### Running
+```
+dune exec ./TigerC <program>
+```
+
 ## Libraries
 ```
 opam install core
