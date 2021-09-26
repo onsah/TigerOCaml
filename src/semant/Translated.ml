@@ -1,5 +1,5 @@
 type expr =
-  { translated_expr : unit
+  { translated_expr : Translate.expr
   ; pos : Syntax.pos
   }
 [@@deriving show]

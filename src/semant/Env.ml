@@ -1,9 +1,14 @@
 type ty = Types.ty [@@deriving show]
 
 type envEntry =
-  | VarEntry of ty
+  | VarEntry of
+      { access : Translate.access
+      ; ty : ty
+      }
   | FunEntry of
-      { argTypes : ty list
+      { level : Translate.level
+      ; label : Temp.label
+      ; argTypes : ty list
       ; return_type : ty
       }
 [@@deriving show]
@@ -18,32 +23,26 @@ let baseTypes =
 let baseTypeEnv = Symbol.enter_all (Symbol.empty, baseTypes)
 
 let base_values =
-  [ ( Symbol.symbol "print"
-    , FunEntry { argTypes = [ Types.String ]; return_type = Types.Unit } )
-  ; (Symbol.symbol "flush", FunEntry { argTypes = []; return_type = Types.Unit })
-  ; ( Symbol.symbol "getchar"
-    , FunEntry { argTypes = []; return_type = Types.String } )
-  ; ( Symbol.symbol "ord"
-    , FunEntry { argTypes = [ Types.String ]; return_type = Types.Int } )
-  ; ( Symbol.symbol "chr"
-    , FunEntry { argTypes = [ Types.Int ]; return_type = Types.String } )
-  ; ( Symbol.symbol "size"
-    , FunEntry { argTypes = [ Types.String ]; return_type = Types.Int } )
-  ; ( Symbol.symbol "substring"
-    , FunEntry
-        { argTypes = [ Types.String; Types.Int; Types.Int ]
-        ; return_type = Types.String
-        } )
-  ; ( Symbol.symbol "concat"
-    , FunEntry
-        { argTypes = [ Types.String; Types.String ]
-        ; return_type = Types.String
-        } )
-  ; ( Symbol.symbol "not"
-    , FunEntry { argTypes = [ Types.Int ]; return_type = Types.Int } )
-  ; ( Symbol.symbol "exit"
-    , FunEntry { argTypes = [ Types.Int ]; return_type = Types.Unit } )
-  ]
+  List.map
+    (fun (name, (argTypes, retType)) ->
+      ( Symbol.symbol name
+      , FunEntry
+          { argTypes
+          ; return_type = retType
+          ; label = Temp.namedlabel name
+          ; level = Translate.outermost
+          } ) )
+    [ ("print", ([ Types.String ], Types.Unit))
+    ; ("flush", ([], Types.Unit))
+    ; ("getchar", ([], Types.String))
+    ; ("ord", ([ Types.String ], Types.Int))
+    ; ("chr", ([ Types.Int ], Types.String))
+    ; ("size", ([ Types.String ], Types.Int))
+    ; ("substring", ([ Types.String; Types.Int; Types.Int ], Types.String))
+    ; ("concat", ([ Types.String; Types.String ], Types.String))
+    ; ("not", ([ Types.Int ], Types.Int))
+    ; ("exit", ([ Types.Int ], Types.Unit))
+    ]
 
 
 let baseValueEnv = Symbol.enter_all (Symbol.empty, base_values)

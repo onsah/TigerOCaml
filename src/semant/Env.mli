@@ -1,9 +1,14 @@
 type ty = Types.ty [@@deriving show]
 
 type envEntry =
-  | VarEntry of ty
+  | VarEntry of
+      { access : Translate.access
+      ; ty : ty
+      }
   | FunEntry of
-      { argTypes : ty list
+      { 
+      level: Translate.level; label: Temp.label;  
+      argTypes : ty list
       ; return_type : ty
       }
 [@@deriving show]
