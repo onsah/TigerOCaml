@@ -1,18 +1,18 @@
-module type FRAME = sig
+module type Frame = sig
   type frame [@@deriving show]
 
   type access [@@deriving show]
 
-  val newFrame : name:Temp.label -> formals:bool list -> frame
+  val new_frame : name:Temp.label -> formals:bool list -> frame
 
   val name : frame -> Temp.label
 
   val formals : frame -> access list
 
-  val allocLocal : frame -> bool -> access
+  val alloc_local : frame -> bool -> access
 end
 
-module MipsFrame : FRAME = struct
+module MipsFrame : Frame = struct
   type frame =
     { name : Temp.label
     ; formals : access list
@@ -27,12 +27,12 @@ module MipsFrame : FRAME = struct
   [@@deriving show]
   (* TODO *)
 
-  let mipsStackEntrySize = 4
+  let mips_stack_entry_size = 4
 
-  let mipsMaxRegister = 5
+  let mips_max_register = 5
 
-  let newFrame ~name ~formals =
-    match List.length formals < mipsMaxRegister with
+  let new_frame ~name ~formals =
+    match List.length formals < mips_max_register with
     | true ->
         { name
         ; formals =
@@ -49,9 +49,10 @@ module MipsFrame : FRAME = struct
 
   let formals frame = frame.locals.contents
 
-  let allocLocal frame _ (* TODO: handle escapes *) =
-    let localsLen = List.length frame.locals.contents in
-    let newLocal = InStack (-mipsStackEntrySize * localsLen) in
-    frame.locals := newLocal :: !(frame.locals) ;
-    newLocal
+  let alloc_local frame _ (* TODO: handle escapes *) =
+    let locals_len = List.length frame.locals.contents in
+    let stack_offset = (-mips_stack_entry_size * (locals_len + 1)) in
+    let new_local = InStack stack_offset in
+    frame.locals := new_local :: !(frame.locals) ;
+    new_local
 end

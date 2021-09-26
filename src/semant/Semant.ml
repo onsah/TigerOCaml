@@ -144,24 +144,30 @@ let type_check_fields given_fields expected_fields record_name pos =
     names_with_types
 
 
-let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel =
+let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) current_level
+    =
   let rec handle_seq_expr value_env type_env exprs pos =
     match exprs with
     | [] ->
-        { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+        { translated_expr = { translated_expr = (); pos; debug = None }
+        ; ty = Types.Unit
+        }
     | [ expr ] ->
-        trans_expr (value_env, type_env, expr) currentLevel
+        trans_expr (value_env, type_env, expr) current_level
     | expr :: exprs ->
-        let _ = trans_expr (value_env, type_env, expr) currentLevel in
+        let _ = trans_expr (value_env, type_env, expr) current_level in
         handle_seq_expr value_env type_env exprs pos
   and handle_assign_expr value_env type_env var expr pos =
-    let { translated_expr = _; ty = var_ty } = trans_var value_env type_env currentLevel var
+    let { translated_expr = _; ty = var_ty } =
+      trans_var value_env type_env current_level var
     and { translated_expr = _; ty = expr_ty } =
-      trans_expr (value_env, type_env, expr) currentLevel
+      trans_expr (value_env, type_env, expr) current_level
     in
     match assignment_type_checks var_ty expr_ty with
     | true ->
-        { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+        { translated_expr = { translated_expr = (); pos; debug = None }
+        ; ty = Types.Unit
+        }
     | false ->
         TigerError.semant_error
           ( sprintf
@@ -171,22 +177,25 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
               (Types.show_ty expr_ty)
           , pos )
   and handle_lvalue_expr value_env type_env lvalue =
-    trans_var value_env type_env currentLevel lvalue 
+    trans_var value_env type_env current_level lvalue
   and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
     let { translated_expr = { pos; _ }; ty = cond_ty } =
-      trans_expr (value_env, type_env, cond) currentLevel
+      trans_expr (value_env, type_env, cond) current_level
     in
     let _ = expecting_int cond_ty pos in
-    let { ty = then_ty; _ } = trans_expr (value_env, type_env, then_arm) currentLevel in
+    let { ty = then_ty; _ } =
+      trans_expr (value_env, type_env, then_arm) current_level
+    in
     match else_arm_opt with
     | Some else_arm ->
         let { translated_expr = { pos; _ }; ty = else_ty } =
-          trans_expr (value_env, type_env, else_arm) currentLevel
+          trans_expr (value_env, type_env, else_arm) current_level
         in
         (* Both can be nil, thus we just check for both side *)
         if is_types_compatible then_ty else_ty
         then
-          { translated_expr = { translated_expr = (); pos = if_pos }
+          { translated_expr =
+              { translated_expr = (); pos = if_pos; debug = None }
           ; ty =
               (match then_ty with Nil -> else_ty | then_ty -> then_ty)
               (* Use non-nil type if exists *)
@@ -201,20 +210,22 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
     | None ->
         (* TODO: More descriptive error message *)
         let _ = expecting_ty Types.Unit then_ty pos in
-        { translated_expr = { translated_expr = (); pos = if_pos }
+        { translated_expr = { translated_expr = (); pos = if_pos; debug = None }
         ; ty = Types.Unit
         }
   and handle_while_expr value_env type_env (cond, body) pos =
     let { translated_expr = { pos = cond_pos; _ }; ty = cond_ty } =
-      trans_expr (value_env, type_env, cond) currentLevel
+      trans_expr (value_env, type_env, cond) current_level
     in
     let _ = expecting_int cond_ty cond_pos in
     let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-      trans_expr (value_env, type_env, body) currentLevel
+      trans_expr (value_env, type_env, body) current_level
     in
     match body_ty with
     | Types.Unit ->
-        { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+        { translated_expr = { translated_expr = (); pos; debug = None }
+        ; ty = Types.Unit
+        }
     | body_ty ->
         TigerError.semant_error
           ( sprintf
@@ -224,22 +235,27 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
           , body_pos )
   and handle_for_expr value_env type_env (var, from, to', body) pos =
     let { ty = from_ty; translated_expr = { pos = from_pos; _ } } =
-      trans_expr (value_env, type_env, from) currentLevel
+      trans_expr (value_env, type_env, from) current_level
     and { ty = to_ty; translated_expr = { pos = to_pos; _ } } =
-      trans_expr (value_env, type_env, to') currentLevel
+      trans_expr (value_env, type_env, to') current_level
     in
     let _ = expecting_int from_ty from_pos
     and _ = expecting_int to_ty to_pos in
     let value_env =
-      let access = Translate.allocLocal currentLevel true (* TODO: find escape *)
+      let access =
+        Translate.alloc_local current_level true
+        (* TODO: find escape *)
       in
-      Symbol.enter (value_env, var, VarEntry { access; ty = Types.Int } ) in
+      Symbol.enter (value_env, var, VarEntry { access; ty = Types.Int })
+    in
     let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-      trans_expr (value_env, type_env, body) currentLevel
+      trans_expr (value_env, type_env, body) current_level
     in
     match body_ty with
     | Types.Unit ->
-        { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+        { translated_expr = { translated_expr = (); pos; debug = None }
+        ; ty = Types.Unit
+        }
     | body_ty ->
         TigerError.semant_error
           ( sprintf
@@ -248,8 +264,10 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
               (Types.show_ty body_ty)
           , body_pos )
   and handle_let_expr value_env type_env (decls, body) _pos =
-    let value_env, type_env = trans_decls value_env type_env currentLevel decls in
-    trans_expr (value_env, type_env, body) currentLevel
+    let value_env, type_env =
+      trans_decls value_env type_env current_level decls
+    in
+    trans_expr (value_env, type_env, body) current_level
   and handle_array_expr
       value_env type_env (typ_symbol, size_expr, init_expr) pos =
     let ty = actual_ty (check_look_ty (type_env, typ_symbol, pos)) in
@@ -257,25 +275,33 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
     | Array (value_ty, _) ->
         let value_ty = actual_ty value_ty in
         let { ty = size_ty; translated_expr = { pos = size_pos; _ } } =
-          trans_expr (value_env, type_env, size_expr) currentLevel
+          trans_expr (value_env, type_env, size_expr) current_level
         and { ty = init_ty; translated_expr = { pos = init_pos; _ } } =
-          trans_expr (value_env, type_env, init_expr) currentLevel
+          trans_expr (value_env, type_env, init_expr) current_level
         in
         let _ = expecting_int size_ty size_pos
         and _ = expecting_ty value_ty init_ty init_pos in
-        { ty; translated_expr = { pos; translated_expr = () } }
+        { ty; translated_expr = { pos; translated_expr = (); debug = None } }
     | ty ->
         TigerError.semant_error
           (sprintf "Expected array type, found %s" (Types.show_ty ty), pos)
   and handle_call_expr value_env type_env (func, args) pos =
     let entry = check_look_env (value_env, func, pos) in
     match entry with
-    | FunEntry { argTypes; return_type; _ } ->
+    | FunEntry { argTypes; return_type; level; label } ->
         let args_checked =
-          List.map (fun arg -> trans_expr (value_env, type_env, arg) currentLevel) args
+          List.map
+            (fun arg -> trans_expr (value_env, type_env, arg) current_level)
+            args
         in
         type_check_args argTypes (List.map (fun arg -> arg.ty) args_checked) pos ;
-        { translated_expr = { translated_expr = (); pos }; ty = return_type }
+        { translated_expr =
+            { translated_expr = ()
+            ; pos
+            ; debug = Some (FunDebug (level, label))
+            }
+        ; ty = return_type
+        }
     | other ->
         TigerError.semant_error
           ( sprintf
@@ -286,11 +312,16 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
   and handle_binary_expr value_env type_env (left, right, op) pos =
     match op with
     | BinaryEq | BinaryLtgt ->
-        let { ty = left_ty; _ } = trans_expr (value_env, type_env, left) currentLevel
-        and { ty = right_ty; _ } = trans_expr (value_env, type_env, right) currentLevel in
+        let { ty = left_ty; _ } =
+          trans_expr (value_env, type_env, left) current_level
+        and { ty = right_ty; _ } =
+          trans_expr (value_env, type_env, right) current_level
+        in
         ( match is_types_compatible left_ty right_ty with
         | true ->
-            { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
+            { translated_expr = { translated_expr = (); pos; debug = None }
+            ; ty = Types.Int
+            }
         | false ->
             TigerError.semant_error
               ( sprintf
@@ -301,13 +332,15 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
               , pos ) )
     | _ ->
         let { ty = ty_left; translated_expr = { pos = pos_left; _ } } =
-          trans_expr (value_env, type_env, left) currentLevel
+          trans_expr (value_env, type_env, left) current_level
         and { ty = ty_right; translated_expr = { pos = pos_right; _ } } =
-          trans_expr (value_env, type_env, right) currentLevel
+          trans_expr (value_env, type_env, right) current_level
         in
         expecting_int ty_left pos_left ;
         expecting_int ty_right pos_right ;
-        { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
+        { translated_expr = { translated_expr = (); pos; debug = None }
+        ; ty = Types.Int
+        }
   and handle_record_expr value_env type_env (typ, fields) pos =
     let record_ty = actual_ty (check_look_ty (type_env, typ, pos)) in
     match record_ty with
@@ -315,7 +348,8 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
         let field_exprs = List.map (fun field -> field.expr) fields in
         let checked_fields =
           List.map
-            (fun field_expr -> trans_expr (value_env, type_env, field_expr) currentLevel)
+            (fun field_expr ->
+              trans_expr (value_env, type_env, field_expr) current_level )
             field_exprs
         in
         let field_names_with_types =
@@ -327,7 +361,9 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
         let _ =
           type_check_fields field_names_with_types expected_field_types typ pos
         in
-        { translated_expr = { translated_expr = (); pos }; ty = record_ty }
+        { translated_expr = { translated_expr = (); pos; debug = None }
+        ; ty = record_ty
+        }
     | found_ty ->
         TigerError.semant_error
           ( sprintf
@@ -338,11 +374,17 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
   in
   match expr with
   | Syntax.IntExpr _ ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Int }
+      { translated_expr = { translated_expr = (); pos; debug = None }
+      ; ty = Types.Int
+      }
   | Syntax.NilExpr ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Nil }
+      { translated_expr = { translated_expr = (); pos; debug = None }
+      ; ty = Types.Nil
+      }
   | Syntax.StringExpr _ ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.String }
+      { translated_expr = { translated_expr = (); pos; debug = None }
+      ; ty = Types.String
+      }
   | Syntax.CallExpr { func; args } ->
       handle_call_expr value_env type_env (func, args) pos
   | Syntax.BinExpr { left; right; op } ->
@@ -362,25 +404,30 @@ let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) currentLevel
   | Syntax.ForExpr { var; from; to'; body; _ } ->
       handle_for_expr value_env type_env (var, from, to', body) pos
   | Syntax.BreakExpr ->
-      { translated_expr = { translated_expr = (); pos }; ty = Types.Unit }
+      { translated_expr = { translated_expr = (); pos; debug = None }
+      ; ty = Types.Unit
+      }
   | Syntax.LetExpr { decls; body } ->
       handle_let_expr value_env type_env (decls, body) pos
   | Syntax.ArrayExpr { typ; size; init_value } ->
       handle_array_expr value_env type_env (typ, size, init_value) pos
 
 
-and trans_var value_env type_env currentLevel = function
+and trans_var value_env type_env current_level = function
   | SimpleVar { symbol; pos } ->
       let value_entry = check_look_env (value_env, symbol, pos) in
       (* It must be a var *)
       ( match value_entry with
-      | VarEntry { ty; _ } ->
-          { translated_expr = { translated_expr = (); pos }; ty = actual_ty ty }
+      | VarEntry { ty; access } ->
+          { translated_expr =
+              { translated_expr = (); pos; debug = Some (VarDebug access) }
+          ; ty = actual_ty ty
+          }
       | FunEntry _ ->
           TigerError.semant_error ("Functions can't be an lvalue", pos) )
   | FieldVar { var; symbol; pos } ->
       let { translated_expr = _; ty = var_ty } =
-        trans_var value_env type_env currentLevel var
+        trans_var value_env type_env current_level var
       in
       let var_ty = actual_ty var_ty in
       ( match var_ty with
@@ -388,7 +435,7 @@ and trans_var value_env type_env currentLevel = function
           let field_id = symbol in
           ( match Types.find_field fields field_id with
           | Some { field_ty; _ } ->
-              { translated_expr = { translated_expr = (); pos }
+              { translated_expr = { translated_expr = (); pos; debug = None }
               ; ty = actual_ty field_ty
               }
           | None ->
@@ -407,14 +454,22 @@ and trans_var value_env type_env currentLevel = function
             , pos ) )
   | SubscriptVar { var; expr; pos } ->
       let { translated_expr = _; ty = var_ty } =
-        trans_var value_env type_env currentLevel var
+        trans_var value_env type_env current_level var
       in
       let var_ty = actual_ty var_ty in
       ( match var_ty with
       | Array (ty, _) ->
-          let trans_expr_result = trans_expr (value_env, type_env, expr) currentLevel in
-          let _ = expecting_int trans_expr_result.ty trans_expr_result.translated_expr.pos in
-          { translated_expr = { translated_expr = (); pos }; ty = actual_ty ty }
+          let trans_expr_result =
+            trans_expr (value_env, type_env, expr) current_level
+          in
+          let _ =
+            expecting_int
+              trans_expr_result.ty
+              trans_expr_result.translated_expr.pos
+          in
+          { translated_expr = { translated_expr = (); pos; debug = None }
+          ; ty = actual_ty ty
+          }
       | _ ->
           TigerError.semant_error
             ( sprintf
@@ -424,17 +479,21 @@ and trans_var value_env type_env currentLevel = function
             , pos ) )
 
 
-and trans_decls value_env type_env currentLevel = function
+and trans_decls value_env type_env current_level = function
   | decl :: decls ->
-      let value_env, type_env = trans_decl value_env type_env currentLevel decl in
-      trans_decls value_env type_env currentLevel decls
+      let value_env, type_env =
+        trans_decl value_env type_env current_level decl
+      in
+      trans_decls value_env type_env current_level decls
   | [] ->
       (value_env, type_env)
 
 
-and trans_decl value_env type_env currentLevel = function
+and trans_decl value_env type_env current_level = function
   | VarDecl { name; typ; value; pos } ->
-      let { ty = value_ty; _ } = trans_expr (value_env, type_env, value) currentLevel in
+      let { ty = value_ty; _ } =
+        trans_expr (value_env, type_env, value) current_level
+      in
       ( match typ with
       | None ->
         (* Infer the type from right hand side *)
@@ -445,7 +504,17 @@ and trans_decl value_env type_env currentLevel = function
                  specified"
               , pos )
         | value_ty ->
-            let value_env = Symbol.enter (value_env, name, VarEntry { ty = value_ty; access = Translate.allocLocal currentLevel true (* TODO: implement findEscape *) }) in
+            let value_env =
+              Symbol.enter
+                ( value_env
+                , name
+                , VarEntry
+                    { ty = value_ty
+                    ; access =
+                        Translate.alloc_local current_level true
+                        (* TODO: implement findEscape *)
+                    } )
+            in
             (value_env, type_env) )
       | Some (Type { symbol; pos }) ->
           let decl_ty = check_look_ty (type_env, symbol, pos) in
@@ -453,7 +522,15 @@ and trans_decl value_env type_env currentLevel = function
           | true ->
               (* Assigned value can be nil, therefore we use the declared type *)
               let value_env =
-                Symbol.enter (value_env, name, VarEntry { ty = decl_ty; access = Translate.allocLocal currentLevel true (* TODO: implement findEscape *) })
+                Symbol.enter
+                  ( value_env
+                  , name
+                  , VarEntry
+                      { ty = decl_ty
+                      ; access =
+                          Translate.alloc_local current_level true
+                          (* TODO: implement findEscape *)
+                      } )
               in
               (value_env, type_env)
           | false ->
@@ -541,26 +618,6 @@ and trans_decl value_env type_env currentLevel = function
         in
         (param_tys, return_type)
       in
-      let process_body value_env params body param_tys return_type =
-        let param_names =
-          List.map (function TypedField field -> field.name) params
-        in
-        let param_names_with_tys = List.combine param_names param_tys in
-        let value_env' =
-          Symbol.enter_all
-            ( value_env
-            , List.map
-                (fun (name, ty) -> (name, VarEntry { ty; access = Translate.allocLocal currentLevel true (* TODO: implement findEscape *) }))
-                param_names_with_tys )
-        in
-        let { ty = body_ty
-            ; translated_expr = { pos = body_pos; translated_expr = () }
-            } =
-          trans_expr (value_env', type_env, body) currentLevel
-        in
-        let _ = expecting_ty return_type body_ty body_pos in
-        ()
-      in
       let _ =
         match func_decls with
         | FunDecl { pos; _ } :: _ ->
@@ -584,39 +641,77 @@ and trans_decl value_env type_env currentLevel = function
           func_decls
       in
       let func_decls_with_headers = List.combine headers func_decls in
+      let func_levels =
+        List.map
+          (fun (FunDecl { name; params; _ }) ->
+            let funcLabel = Temp.namedlabel (Symbol.name name) in
+            Translate.new_level
+              ~parent:current_level
+              ~name:funcLabel
+              ~formals_escape:(List.map (fun _ -> true) params) )
+          func_decls
+      in
       let func_entries =
-        List.combine
-          (List.map (function FunDecl { name; _ } -> name) func_decls)
-          (List.map
-             (fun ((param_tys, return_type), FunDecl { name; params; _ }) ->
-               let funcLabel = Temp.namedlabel (Symbol.name name) in
-               let newLevel =
-                 Translate.newLevel
-                   ~parent:currentLevel
-                   ~name:funcLabel
-                   ~formals:
-                     (List.map
-                        (fun _ -> Translate.allocLocal currentLevel true)
-                        params )
-               in
-               FunEntry
-                 { argTypes = param_tys
-                 ; return_type
-                 ; level = newLevel
-                 ; label = funcLabel
-                 } )
-             func_decls_with_headers )
+        List.map
+          (fun (((param_tys, return_type), FunDecl { name; _ }), funcLevel) ->
+            ( name
+            , FunEntry
+                { argTypes = param_tys
+                ; return_type
+                ; level = funcLevel
+                ; label = Translate.name funcLevel
+                } ) )
+          (List.combine func_decls_with_headers func_levels)
+          
+      in
+      (* TODO: process each body inside the function's level -*)
+      let process_body value_env params body param_tys return_type functionLevel
+          =
+        let param_names =
+          List.map (function TypedField field -> field.name) params
+        in
+        let param_names_with_tys = List.combine param_names param_tys in
+        let value_env' =
+          Symbol.enter_all
+            ( value_env
+            , List.map
+                (fun (name, ty) ->
+                  ( name
+                  , VarEntry
+                      { ty
+                      ; access =
+                          Translate.alloc_local functionLevel true
+                          (* TODO: implement findEscape *)
+                      } ) )
+                param_names_with_tys )
+        in
+        let { ty = body_ty
+            ; translated_expr = { pos = body_pos; translated_expr = (); _ }
+            } =
+          trans_expr (value_env', type_env, body) functionLevel
+        in
+        let _ = expecting_ty return_type body_ty body_pos in
+        ()
       in
       (* Put headers into the environment *)
       let value_env = Symbol.enter_all (value_env, func_entries) in
       let _ =
         List.map
           (function
-            | (param_tys, return_type), FunDecl { params; body; _ } ->
-                process_body value_env params body param_tys return_type )
-          func_decls_with_headers
+            | (((param_tys, return_type), FunDecl { params; body; _ }), funcLevel)
+              ->
+                process_body
+                  value_env
+                  params
+                  body
+                  param_tys
+                  return_type
+                  funcLevel )
+          (List.combine func_decls_with_headers func_levels)
       in
       (value_env, type_env)
+
+
 and trans_ty type_env = function
   | RecordDecl { fields; _ } ->
       let fields =
@@ -635,4 +730,5 @@ and trans_ty type_env = function
       Array (check_look_ty (type_env, name, pos), ref ())
 
 
-let type_check expr = trans_expr (baseValueEnv, baseTypeEnv, expr) Translate.outermost
+let type_check expr =
+  trans_expr (baseValueEnv, baseTypeEnv, expr) Translate.outermost

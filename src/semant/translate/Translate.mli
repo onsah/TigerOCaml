@@ -6,8 +6,10 @@ type expr = unit [@@deriving show]
 
 val outermost : level
 
-val newLevel : parent:level -> name:Temp.label -> formals:access list -> level
+val new_level : parent:level -> name:Temp.label -> formals_escape:bool list -> level
 
 val formals : level -> access list
 
-val allocLocal : level -> bool -> access
+val name : level -> Temp.label
+
+val alloc_local : level -> bool -> access

@@ -1,4 +1,4 @@
-module Frame = Frame.MipsFrame
+module Frame: Frame.Frame = Frame.MipsFrame
 
 type access = level * Frame.access [@@deriving show]
 
@@ -10,21 +10,22 @@ and level =
 
 let outermost =
   { parent = None
-  ; frame = Frame.newFrame ~name:(Temp.newlabel ()) ~formals:[]
+  ; frame = Frame.new_frame ~name:(Temp.newlabel ()) ~formals:[]
   }
 
 
-let newLevel ~parent ~name ~formals =
-  let formalsEscape = List.map (fun _ -> true) formals in
+let new_level ~parent ~name ~formals_escape =
   { parent = Some parent
   ; frame =
-      Frame.newFrame ~name ~formals:(true (* pass static link as an argument *) :: formalsEscape)
+      Frame.new_frame ~name ~formals:(true (* pass static link as an argument *) :: formals_escape)
   }
 
 
-let formals level = List.map (fun frameAccess -> (level, frameAccess)) (List.tl (Frame.formals level.frame))
+let formals level = List.map (fun frame_access -> (level, frame_access)) (List.tl (Frame.formals level.frame))
 
-let allocLocal level escape = (level, Frame.allocLocal level.frame escape)
+let name level = Frame.name level.frame
+
+let alloc_local level escape = (level, Frame.alloc_local level.frame escape)
 
 
 type expr = unit [@@deriving show]

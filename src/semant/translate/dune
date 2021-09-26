@@ -1,0 +1,20 @@
+(library
+ (name translate)
+ (modules Translate)
+ (libraries symbol temp frame)
+ (preprocess
+  (pps ppx_deriving.show)))
+
+(library
+ (name frame)
+ (modules Frame)
+ (libraries symbol temp utils)
+ (preprocess
+  (pps ppx_deriving.show)))
+
+(library
+ (name temp)
+ (modules Temp)
+ (libraries symbol)
+ (preprocess
+  (pps ppx_deriving.show)))
