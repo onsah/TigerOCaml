@@ -19,40 +19,46 @@ module MipsFrame : Frame = struct
     ; locals : access list ref
     }
   [@@deriving show]
-  (* TODO *)
 
   and access =
     | InStack of int
     | InReg of Temp.temp
   [@@deriving show]
-  (* TODO *)
 
   let mips_stack_entry_size = 4
 
-  let mips_max_register = 5
+  let mips_max_register = 4
 
   let new_frame ~name ~formals =
-    match List.length formals < mips_max_register with
-    | true ->
-        { name
-        ; formals =
-            List.map
-              (fun _ -> (* TODO: handle escape *) InReg (Temp.newtemp ()))
-              formals
-        ; locals = ref []
-        }
-    | false ->
-        raise (Failure "Mips can't handle this amount parameters")
+    let _, formal_accesses =
+      List.fold_left_map
+        (fun (escape_so_far, stack_depth) escape ->
+          match escape_so_far < mips_max_register && not escape with
+          | true ->
+              ((escape_so_far + 1, stack_depth), InReg (Temp.newtemp ()))
+          | false ->
+              let stack_offset = -mips_stack_entry_size * stack_depth in
+              ((escape_so_far, stack_depth + 1), InStack stack_offset) )
+        (0, 0)
+        formals
+    in
+    { name; formals = formal_accesses; locals = ref [] }
 
 
   let name frame = frame.name
 
   let formals frame = frame.locals.contents
 
-  let alloc_local frame _ (* TODO: handle escapes *) =
+  let alloc_local frame escape (* TODO: handle escapes *) =
     let locals_len = List.length frame.locals.contents in
-    let stack_offset = (-mips_stack_entry_size * (locals_len + 1)) in
-    let new_local = InStack stack_offset in
+    let stack_offset = -mips_stack_entry_size * (locals_len + 1) in
+    let new_local =
+      match escape with
+      | true ->
+          InStack stack_offset
+      | false ->
+          InReg (Temp.newtemp ())
+    in
     frame.locals := new_local :: !(frame.locals) ;
     new_local
 end
