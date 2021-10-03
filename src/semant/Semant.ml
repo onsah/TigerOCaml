@@ -650,7 +650,10 @@ and trans_decl value_env type_env current_level = function
             Translate.new_level
               ~parent:current_level
               ~name:funcLabel
-              ~formals_escape:(List.map (fun _ -> true) params) )
+              ~formals_escape:
+                (List.map
+                   (fun (Syntax.TypedField { escape; _ }) -> escape.contents)
+                   params ) )
           func_decls
       in
       let func_entries =
