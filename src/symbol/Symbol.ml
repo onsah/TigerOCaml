@@ -1,6 +1,7 @@
 type symbol = Symbol of (string * int)
 
 let show_symbol = function Symbol (str, _) -> Printf.sprintf "%s" str
+
 let pp_symbol ppf = function Symbol (str, _) -> Format.fprintf ppf "%s" str
 
 let nextSymbolId = ref 0

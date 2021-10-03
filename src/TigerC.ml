@@ -63,6 +63,7 @@ let () =
   match args with
   | _ :: path :: _ ->
       let expr = parse path in
+      ignore (FindEscape.find_escape expr) ;
       let () = Printf.printf "%s\n" (Syntax.show_expr expr) in
       let typed_expr = Semant.type_check expr in
       Printf.printf "%s\n" (Translated.show_typedExpr typed_expr)

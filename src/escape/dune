@@ -1,0 +1,4 @@
+(library
+ (name findEscape)
+ (modules FindEscape)
+ (libraries syntax))

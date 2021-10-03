@@ -155,7 +155,7 @@ let var_decl :=
         { 
             let IdentToken (name, _, _) = ident in
             let name = Symbol.symbol name in 
-                VarDecl { name; typ; value; pos }
+                VarDecl { name; typ; value; pos; escape = ref false }
         }
 
 let return_type := 

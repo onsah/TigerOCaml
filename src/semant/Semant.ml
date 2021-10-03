@@ -144,8 +144,8 @@ let type_check_fields given_fields expected_fields record_name pos =
     names_with_types
 
 
-let rec trans_expr (value_env, type_env, Syntax.Expr { expr; pos }) current_level
-    =
+let rec trans_expr
+    (value_env, type_env, Syntax.Expr { expr; pos }) current_level =
   let rec handle_seq_expr value_env type_env exprs pos =
     match exprs with
     | [] ->
@@ -490,7 +490,11 @@ and trans_decls value_env type_env current_level = function
 
 
 and trans_decl value_env type_env current_level = function
-  | VarDecl { name; typ; value; pos } ->
+  | VarDecl { name; typ; value; pos; escape } ->
+      Printf.printf
+        "Declaring %s, escape: %B\n"
+        (Symbol.show_symbol name)
+        escape.contents ;
       let { ty = value_ty; _ } =
         trans_expr (value_env, type_env, value) current_level
       in
@@ -511,8 +515,7 @@ and trans_decl value_env type_env current_level = function
                 , VarEntry
                     { ty = value_ty
                     ; access =
-                        Translate.alloc_local current_level true
-                        (* TODO: implement findEscape *)
+                        Translate.alloc_local current_level escape.contents
                     } )
             in
             (value_env, type_env) )
@@ -528,8 +531,7 @@ and trans_decl value_env type_env current_level = function
                   , VarEntry
                       { ty = decl_ty
                       ; access =
-                          Translate.alloc_local current_level true
-                          (* TODO: implement findEscape *)
+                          Translate.alloc_local current_level escape.contents
                       } )
               in
               (value_env, type_env)
@@ -662,28 +664,23 @@ and trans_decl value_env type_env current_level = function
                 ; label = Translate.name funcLevel
                 } ) )
           (List.combine func_decls_with_headers func_levels)
-          
       in
+
       (* TODO: process each body inside the function's level -*)
       let process_body value_env params body param_tys return_type functionLevel
           =
-        let param_names =
-          List.map (function TypedField field -> field.name) params
-        in
-        let param_names_with_tys = List.combine param_names param_tys in
+        let params_with_tys = List.combine params param_tys in
         let value_env' =
           Symbol.enter_all
             ( value_env
             , List.map
-                (fun (name, ty) ->
+                (fun (TypedField { name; escape; _ }, ty) ->
                   ( name
                   , VarEntry
                       { ty
-                      ; access =
-                          Translate.alloc_local functionLevel true
-                          (* TODO: implement findEscape *)
+                      ; access = Translate.alloc_local functionLevel !escape
                       } ) )
-                param_names_with_tys )
+                params_with_tys )
         in
         let { ty = body_ty
             ; translated_expr = { pos = body_pos; translated_expr = (); _ }
@@ -698,7 +695,7 @@ and trans_decl value_env type_env current_level = function
       let _ =
         List.map
           (function
-            | (((param_tys, return_type), FunDecl { params; body; _ }), funcLevel)
+            | ((param_tys, return_type), FunDecl { params; body; _ }), funcLevel
               ->
                 process_body
                   value_env
