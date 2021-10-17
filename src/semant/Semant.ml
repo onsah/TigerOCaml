@@ -666,7 +666,6 @@ and trans_decl value_env type_env current_level = function
           (List.combine func_decls_with_headers func_levels)
       in
 
-      (* TODO: process each body inside the function's level -*)
       let process_body value_env params body param_tys return_type functionLevel
           =
         let params_with_tys = List.combine params param_tys in
