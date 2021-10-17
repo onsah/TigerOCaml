@@ -233,7 +233,7 @@ let rec trans_expr
                return unit. But this body has type %s"
               (Types.show_ty body_ty)
           , body_pos )
-  and handle_for_expr value_env type_env (var, from, to', body) pos =
+  and handle_for_expr value_env type_env (var, escape, from, to', body) pos =
     let { ty = from_ty; translated_expr = { pos = from_pos; _ } } =
       trans_expr (value_env, type_env, from) current_level
     and { ty = to_ty; translated_expr = { pos = to_pos; _ } } =
@@ -242,10 +242,7 @@ let rec trans_expr
     let _ = expecting_int from_ty from_pos
     and _ = expecting_int to_ty to_pos in
     let value_env =
-      let access =
-        Translate.alloc_local current_level true
-        (* TODO: find escape *)
-      in
+      let access = Translate.alloc_local current_level !escape in
       Symbol.enter (value_env, var, VarEntry { access; ty = Types.Int })
     in
     let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
@@ -401,8 +398,8 @@ let rec trans_expr
       handle_if_expr value_env type_env (cond, then_arm, else_arm) pos
   | Syntax.WhileExpr { cond; body } ->
       handle_while_expr value_env type_env (cond, body) pos
-  | Syntax.ForExpr { var; from; to'; body; _ } ->
-      handle_for_expr value_env type_env (var, from, to', body) pos
+  | Syntax.ForExpr { var; from; to'; body; escape } ->
+      handle_for_expr value_env type_env (var, escape, from, to', body) pos
   | Syntax.BreakExpr ->
       { translated_expr = { translated_expr = (); pos; debug = None }
       ; ty = Types.Unit
