@@ -51,7 +51,13 @@ module MipsFrame : Frame = struct
 
   let alloc_local frame escape (* TODO: handle escapes *) =
     Printf.printf "Allocating: %B\n" escape ;
-    let locals_len = List.length frame.locals.contents in
+    let locals_len =
+      List.length
+        (List.filter
+           (fun access ->
+             match access with InStack _ -> true | InReg _ -> false )
+           frame.locals.contents )
+    in
     let stack_offset = -mips_stack_entry_size * (locals_len + 1) in
     let new_local =
       match escape with
