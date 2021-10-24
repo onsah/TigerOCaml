@@ -1,5 +1,4 @@
 open Ir
-open Utils
 
 module type Frame = sig
   type frame [@@deriving show]
@@ -19,7 +18,7 @@ module type Frame = sig
   (*Frame pointer*)
   val fp : Temp.temp
 
-  val expr : access -> IRTree.expr -> IRTree.expr
+  val expr : access -> IRTree.expr
 end
 
 module MipsFrame : Frame = struct
@@ -39,7 +38,15 @@ module MipsFrame : Frame = struct
 
   let fp = Temp.newtemp ()
 
-  let expr _ _ = __ ()
+  let expr = function
+    | InReg t ->
+        IRTree.Temp t
+    | InStack offset ->
+        IRTree.Mem
+          (IRTree.Binop
+             { left = IRTree.Const offset; right = Temp fp; op = IRTree.Plus }
+          )
+
 
   let mips_max_register = 4
 
@@ -63,7 +70,7 @@ module MipsFrame : Frame = struct
 
   let formals frame = frame.locals.contents
 
-  let alloc_local frame escape (* TODO: handle escapes *) =
+  let alloc_local frame escape =
     Printf.printf "Allocating: %B\n" escape ;
     let locals_len =
       List.length

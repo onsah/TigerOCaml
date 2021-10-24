@@ -1,5 +1,3 @@
-open Utils
-
 module Frame : Frame.Frame = Frame.MipsFrame
 
 module IRTree = Ir.IRTree
@@ -127,4 +125,4 @@ let extract_cond = function
       cond_fn
 
 
-let dummy_expr = __ ()
+let dummy_expr = NoValue (IRTree.Expr (IRTree.Const 0))
