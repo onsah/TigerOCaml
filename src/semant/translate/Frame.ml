@@ -1,3 +1,6 @@
+open Ir
+open Utils
+
 module type Frame = sig
   type frame [@@deriving show]
 
@@ -10,6 +13,13 @@ module type Frame = sig
   val formals : frame -> access list
 
   val alloc_local : frame -> bool -> access
+
+  val word_size : int
+
+  (*Frame pointer*)
+  val fp : Temp.temp
+
+  val expr : access -> IRTree.expr -> IRTree.expr
 end
 
 module MipsFrame : Frame = struct
@@ -25,7 +35,11 @@ module MipsFrame : Frame = struct
     | InReg of Temp.temp
   [@@deriving show]
 
-  let mips_stack_entry_size = 4
+  let word_size = 4
+
+  let fp = Temp.newtemp ()
+
+  let expr _ _ = __ ()
 
   let mips_max_register = 4
 
@@ -37,7 +51,7 @@ module MipsFrame : Frame = struct
           | true ->
               ((escape_so_far + 1, stack_depth), InReg (Temp.newtemp ()))
           | false ->
-              let stack_offset = -mips_stack_entry_size * stack_depth in
+              let stack_offset = -word_size * stack_depth in
               ((escape_so_far, stack_depth + 1), InStack stack_offset) )
         (0, 0)
         formals
@@ -58,7 +72,7 @@ module MipsFrame : Frame = struct
              match access with InStack _ -> true | InReg _ -> false )
            frame.locals.contents )
     in
-    let stack_offset = -mips_stack_entry_size * (locals_len + 1) in
+    let stack_offset = -word_size * (locals_len + 1) in
     let new_local =
       match escape with
       | true ->

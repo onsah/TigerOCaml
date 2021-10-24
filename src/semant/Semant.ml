@@ -149,7 +149,8 @@ let rec trans_expr
   let rec handle_seq_expr value_env type_env exprs pos =
     match exprs with
     | [] ->
-        { translated_expr = { translated_expr = (); pos; debug = None }
+        { translated_expr =
+            { translated_expr = Translate.dummy_expr; pos; debug = None }
         ; ty = Types.Unit
         }
     | [ expr ] ->
@@ -165,7 +166,8 @@ let rec trans_expr
     in
     match assignment_type_checks var_ty expr_ty with
     | true ->
-        { translated_expr = { translated_expr = (); pos; debug = None }
+        { translated_expr =
+            { translated_expr = Translate.dummy_expr; pos; debug = None }
         ; ty = Types.Unit
         }
     | false ->
@@ -195,7 +197,10 @@ let rec trans_expr
         if is_types_compatible then_ty else_ty
         then
           { translated_expr =
-              { translated_expr = (); pos = if_pos; debug = None }
+              { translated_expr = Translate.dummy_expr
+              ; pos = if_pos
+              ; debug = None
+              }
           ; ty =
               (match then_ty with Nil -> else_ty | then_ty -> then_ty)
               (* Use non-nil type if exists *)
@@ -210,7 +215,11 @@ let rec trans_expr
     | None ->
         (* TODO: More descriptive error message *)
         let _ = expecting_ty Types.Unit then_ty pos in
-        { translated_expr = { translated_expr = (); pos = if_pos; debug = None }
+        { translated_expr =
+            { translated_expr = Translate.dummy_expr
+            ; pos = if_pos
+            ; debug = None
+            }
         ; ty = Types.Unit
         }
   and handle_while_expr value_env type_env (cond, body) pos =
@@ -223,7 +232,8 @@ let rec trans_expr
     in
     match body_ty with
     | Types.Unit ->
-        { translated_expr = { translated_expr = (); pos; debug = None }
+        { translated_expr =
+            { translated_expr = Translate.dummy_expr; pos; debug = None }
         ; ty = Types.Unit
         }
     | body_ty ->
@@ -250,7 +260,8 @@ let rec trans_expr
     in
     match body_ty with
     | Types.Unit ->
-        { translated_expr = { translated_expr = (); pos; debug = None }
+        { translated_expr =
+            { translated_expr = Translate.dummy_expr; pos; debug = None }
         ; ty = Types.Unit
         }
     | body_ty ->
@@ -278,7 +289,10 @@ let rec trans_expr
         in
         let _ = expecting_int size_ty size_pos
         and _ = expecting_ty value_ty init_ty init_pos in
-        { ty; translated_expr = { pos; translated_expr = (); debug = None } }
+        { ty
+        ; translated_expr =
+            { pos; translated_expr = Translate.dummy_expr; debug = None }
+        }
     | ty ->
         TigerError.semant_error
           (sprintf "Expected array type, found %s" (Types.show_ty ty), pos)
@@ -293,7 +307,7 @@ let rec trans_expr
         in
         type_check_args argTypes (List.map (fun arg -> arg.ty) args_checked) pos ;
         { translated_expr =
-            { translated_expr = ()
+            { translated_expr = Translate.dummy_expr
             ; pos
             ; debug = Some (FunDebug (level, label))
             }
@@ -316,7 +330,8 @@ let rec trans_expr
         in
         ( match is_types_compatible left_ty right_ty with
         | true ->
-            { translated_expr = { translated_expr = (); pos; debug = None }
+            { translated_expr =
+                { translated_expr = Translate.dummy_expr; pos; debug = None }
             ; ty = Types.Int
             }
         | false ->
@@ -335,7 +350,8 @@ let rec trans_expr
         in
         expecting_int ty_left pos_left ;
         expecting_int ty_right pos_right ;
-        { translated_expr = { translated_expr = (); pos; debug = None }
+        { translated_expr =
+            { translated_expr = Translate.dummy_expr; pos; debug = None }
         ; ty = Types.Int
         }
   and handle_record_expr value_env type_env (typ, fields) pos =
@@ -358,7 +374,8 @@ let rec trans_expr
         let _ =
           type_check_fields field_names_with_types expected_field_types typ pos
         in
-        { translated_expr = { translated_expr = (); pos; debug = None }
+        { translated_expr =
+            { translated_expr = Translate.dummy_expr; pos; debug = None }
         ; ty = record_ty
         }
     | found_ty ->
@@ -371,15 +388,18 @@ let rec trans_expr
   in
   match expr with
   | Syntax.IntExpr _ ->
-      { translated_expr = { translated_expr = (); pos; debug = None }
+      { translated_expr =
+          { translated_expr = Translate.dummy_expr; pos; debug = None }
       ; ty = Types.Int
       }
   | Syntax.NilExpr ->
-      { translated_expr = { translated_expr = (); pos; debug = None }
+      { translated_expr =
+          { translated_expr = Translate.dummy_expr; pos; debug = None }
       ; ty = Types.Nil
       }
   | Syntax.StringExpr _ ->
-      { translated_expr = { translated_expr = (); pos; debug = None }
+      { translated_expr =
+          { translated_expr = Translate.dummy_expr; pos; debug = None }
       ; ty = Types.String
       }
   | Syntax.CallExpr { func; args } ->
@@ -401,7 +421,8 @@ let rec trans_expr
   | Syntax.ForExpr { var; from; to'; body; escape } ->
       handle_for_expr value_env type_env (var, escape, from, to', body) pos
   | Syntax.BreakExpr ->
-      { translated_expr = { translated_expr = (); pos; debug = None }
+      { translated_expr =
+          { translated_expr = Translate.dummy_expr; pos; debug = None }
       ; ty = Types.Unit
       }
   | Syntax.LetExpr { decls; body } ->
@@ -417,7 +438,10 @@ and trans_var value_env type_env current_level = function
       ( match value_entry with
       | VarEntry { ty; access } ->
           { translated_expr =
-              { translated_expr = (); pos; debug = Some (VarDebug access) }
+              { translated_expr = Translate.dummy_expr
+              ; pos
+              ; debug = Some (VarDebug access)
+              }
           ; ty = actual_ty ty
           }
       | FunEntry _ ->
@@ -432,7 +456,8 @@ and trans_var value_env type_env current_level = function
           let field_id = symbol in
           ( match Types.find_field fields field_id with
           | Some { field_ty; _ } ->
-              { translated_expr = { translated_expr = (); pos; debug = None }
+              { translated_expr =
+                  { translated_expr = Translate.dummy_expr; pos; debug = None }
               ; ty = actual_ty field_ty
               }
           | None ->
@@ -464,7 +489,8 @@ and trans_var value_env type_env current_level = function
               trans_expr_result.ty
               trans_expr_result.translated_expr.pos
           in
-          { translated_expr = { translated_expr = (); pos; debug = None }
+          { translated_expr =
+              { translated_expr = Translate.dummy_expr; pos; debug = None }
           ; ty = actual_ty ty
           }
       | _ ->
@@ -681,9 +707,7 @@ and trans_decl value_env type_env current_level = function
                       } ) )
                 params_with_tys )
         in
-        let { ty = body_ty
-            ; translated_expr = { pos = body_pos; translated_expr = (); _ }
-            } =
+        let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
           trans_expr (value_env', type_env, body) functionLevel
         in
         let _ = expecting_ty return_type body_ty body_pos in

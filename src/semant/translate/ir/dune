@@ -1,0 +1,6 @@
+(library
+ (name ir)
+ (modules IRTree)
+ (libraries temp utils)
+ (preprocess
+  (pps ppx_deriving.show)))
