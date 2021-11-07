@@ -35,3 +35,5 @@ val extract_expr : expr -> IRTree.expr
 val extract_no_result : expr -> IRTree.stmt
 
 val extract_cond : expr -> cond_args -> IRTree.stmt
+
+val simple_var : access * level -> expr

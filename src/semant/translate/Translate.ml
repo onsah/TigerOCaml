@@ -126,3 +126,21 @@ let extract_cond = function
 
 
 let dummy_expr = NoValue (IRTree.Expr (IRTree.Const 0))
+
+let static_link frame = List.hd (Frame.formals frame)
+
+let simple_var ((access_level, frame_access), level) =
+  let rec simple_var_impl (curr_level, prev_expr) =
+    if curr_level == access_level
+    then Expr (Frame.expr frame_access ~fp:prev_expr)
+    else
+      let next_expr = Frame.expr (static_link curr_level.frame) ~fp:prev_expr in
+      match curr_level.parent with
+      | None ->
+          raise (Failure "Expected to have parent")
+      | Some parent ->
+          simple_var_impl (parent, next_expr)
+  in
+
+  simple_var_impl (level, IRTree.Temp Frame.fp)
+(* construct ir exor and continue *)

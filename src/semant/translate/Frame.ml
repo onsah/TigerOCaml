@@ -9,6 +9,7 @@ module type Frame = sig
 
   val name : frame -> Temp.label
 
+  (* First access is static link *)
   val formals : frame -> access list
 
   val alloc_local : frame -> bool -> access
@@ -18,7 +19,7 @@ module type Frame = sig
   (*Frame pointer*)
   val fp : Temp.temp
 
-  val expr : access -> IRTree.expr
+  val expr : access -> fp:IRTree.expr -> IRTree.expr
 end
 
 module MipsFrame : Frame = struct
@@ -38,14 +39,14 @@ module MipsFrame : Frame = struct
 
   let fp = Temp.newtemp ()
 
-  let expr = function
+  let expr access ~fp =
+    match access with
     | InReg t ->
         IRTree.Temp t
     | InStack offset ->
         IRTree.Mem
           (IRTree.Binop
-             { left = IRTree.Const offset; right = Temp fp; op = IRTree.Plus }
-          )
+             { left = IRTree.Const offset; right = fp; op = IRTree.Plus } )
 
 
   let mips_max_register = 4
@@ -68,7 +69,7 @@ module MipsFrame : Frame = struct
 
   let name frame = frame.name
 
-  let formals frame = frame.locals.contents
+  let formals frame = frame.formals
 
   let alloc_local frame escape =
     Printf.printf "Allocating: %B\n" escape ;
