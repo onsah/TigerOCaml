@@ -1,3 +1,9 @@
 (tests
  (names test_test)
+ (modules test_test)
  (libraries ounit2))
+
+(library
+ (name testUtils)
+ (modules Utils)
+ (libraries syntax))
