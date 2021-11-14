@@ -6,9 +6,9 @@ type envEntry =
       ; ty : ty
       }
   | FunEntry of
-      { 
-      level: Translate.level; label: Temp.label;  
-      argTypes : ty list
+      { level : Translate.level
+      ; label : Temp.label
+      ; argTypes : ty list
       ; return_type : ty
       }
 [@@deriving show]
