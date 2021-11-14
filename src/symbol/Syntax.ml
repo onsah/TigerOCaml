@@ -108,7 +108,7 @@ and decl =
   | VarDecl of
       { name : symbol
       ; typ : typ option
-      ; escape: bool ref
+      ; escape : bool ref
       ; value : expr
       ; pos : pos
       }
@@ -159,12 +159,21 @@ and typed_field =
       ; escape : bool ref
       }
 
-let extract_symbol var = match var with 
-| SimpleVar { symbol; _ } -> Some symbol
-| FieldVar { symbol; _ } -> Some symbol
-| SubscriptVar _ -> None
+let extract_symbol var =
+  match var with
+  | SimpleVar { symbol; _ } ->
+      Some symbol
+  | FieldVar { symbol; _ } ->
+      Some symbol
+  | SubscriptVar _ ->
+      None
 
-let extract_parent_var var = match var with
-| FieldVar { var; _ } -> Some var
-| SubscriptVar { var; _ } -> Some var
-| SimpleVar _ -> None
+
+let extract_parent_var var =
+  match var with
+  | FieldVar { var; _ } ->
+      Some var
+  | SubscriptVar { var; _ } ->
+      Some var
+  | SimpleVar _ ->
+      None
