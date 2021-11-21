@@ -13,4 +13,14 @@ let simple_var name =
     )
 
 
+let decl_var ?(escape = ref false) name =
+  VarDecl
+    { name = Symbol.symbol name
+    ; typ = None
+    ; escape
+    ; value = int_expr 0
+    ; pos = dummy_pos
+    }
+
+
 let unit = expr (SeqExpr [])

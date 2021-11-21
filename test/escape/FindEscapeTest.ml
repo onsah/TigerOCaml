@@ -137,6 +137,33 @@ let suite =
          in
          let _ = find_escape expr in
          assert_bool "function param 'x' must escape" !func_param_escape )
+       ; ( "test no escape"
+         >:: fun _ ->
+         let x_escape = ref false in
+         let expr =
+           Utils.expr
+             (LetExpr
+                { decls =
+                    [ Utils.decl_var ~escape:x_escape "x"
+                    ; Utils.decl_var "y"
+                    ; FunctionDecls
+                        [ FunDecl
+                            { name = Symbol.symbol "foo"
+                            ; params = []
+                            ; return_type = None
+                            ; pos = dummy_pos
+                            ; body =
+                                Utils.simple_var "y"
+                                (* use the other variable *)
+                            }
+                        ]
+                    ]
+                ; body = Utils.unit
+                } )
+         in
+         let _ = find_escape expr in
+         (* X shouldn't be escaped *)
+         assert_bool "value must not escape" (not !x_escape) )
        ]
 
 
