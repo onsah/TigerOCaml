@@ -129,6 +129,7 @@ let dummy_expr = NoValue (IRTree.Expr (IRTree.Const 0))
 
 let static_link frame = List.hd (Frame.formals frame)
 
+(* Can be used for prımitive values as well as record and array values *)
 let simple_var ((access_level, frame_access), level) =
   let rec simple_var_impl (curr_level, prev_expr) =
     if curr_level == access_level
@@ -143,4 +144,48 @@ let simple_var ((access_level, frame_access), level) =
   in
 
   simple_var_impl (level, IRTree.Temp Frame.fp)
+
+
 (* construct ir exor and continue *)
+
+(* Can be used both for arrray subscripts and record field accesses *)
+(* TODO: OOB check *)
+let subscript (array_access, level, offset_expr) =
+  let array_start = simple_var (array_access, level) in
+  Expr
+    (Mem
+       (Binop
+          { op = Plus
+          ; left = extract_expr array_start
+          ; right =
+              Binop
+                { op = Mul
+                ; left = Const Frame.word_size
+                ; right = extract_expr offset_expr
+                }
+          } ) )
+
+
+(* TODO: if either than or else is conditional expression, optimize according to page 162 *)
+let if_else (cond_expr, then_expr, else_expr) =
+  let cond = extract_cond cond_expr in
+  let then' = extract_expr then_expr
+  and else' = extract_expr else_expr
+  and true_label = Temp.newlabel ()
+  and false_label = Temp.newlabel ()
+  and body_result = Temp.newtemp ()
+  (*** After branch ends *)
+  and join_label = Temp.newlabel () in
+  Expr
+    (IRTree.ESeq
+       ( Seq
+           [ cond { true_label; false_label }
+           ; IRTree.Label true_label
+           ; IRTree.Move { location = IRTree.Temp body_result; value = then' }
+           ; IRTree.Jump { expr = IRTree.Const 0; labels = [ join_label ] }
+           ; IRTree.Label false_label
+           ; IRTree.Move { location = IRTree.Temp body_result; value = else' }
+             (* No need to jump to join if branch is false *)
+           ; IRTree.Label join_label
+           ]
+       , IRTree.Temp body_result ) )

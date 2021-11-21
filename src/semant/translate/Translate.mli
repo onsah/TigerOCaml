@@ -37,3 +37,9 @@ val extract_no_result : expr -> IRTree.stmt
 val extract_cond : expr -> cond_args -> IRTree.stmt
 
 val simple_var : access * level -> expr
+
+(* array access, access level, offset access *)
+val subscript : access * level * expr -> expr
+
+(* cond, then body, else body *)
+val if_else : expr * expr * expr -> expr
