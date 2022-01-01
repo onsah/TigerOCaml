@@ -46,7 +46,7 @@ and binop =
   | Minus
   | Mul
   | Div
-  | And
+  | And (* Do we need those??? *)
   | Or
   | Lshift
   | Rshift
@@ -73,3 +73,13 @@ let const_false = Const 0
 
 (*Convenience function to jump to a single label*)
 let jump_single_label label = Jump { expr = Name label; labels = [ label ] }
+
+let is_truthy i = i != 0
+
+let is_falsy i = i = 0
+
+let is_int_and_truthy expr =
+  match expr with Const i -> is_truthy i | _ -> false
+
+
+let is_int_and_falsy expr = match expr with Const i -> is_falsy i | _ -> false

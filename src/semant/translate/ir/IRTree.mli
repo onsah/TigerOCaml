@@ -72,3 +72,11 @@ val const_true : expr
 val const_false : expr
 
 val jump_single_label : label -> stmt
+
+val is_int_and_truthy : expr -> bool
+
+val is_int_and_falsy : expr -> bool
+
+val is_truthy : int -> bool
+
+val is_falsy : int -> bool
