@@ -285,6 +285,18 @@ let while_expr ==
 let binary_expr :=
   | left = expr; ~ = binop; right = expr; {
       match binop with 
+        | (BinaryAnd, pos) ->
+          let expr = IfExpr { 
+              cond = left; 
+              then_arm = right; 
+              else_arm = Some (Expr { expr = false_expr; pos })
+          } in Expr { expr; pos }
+        | (BinaryOr, pos) -> 
+          let expr = IfExpr { 
+              cond = left; 
+              then_arm = Expr { expr = true_expr; pos }; 
+              else_arm = Some right
+          } in Expr { expr; pos }
         | (kind, pos) -> 
           let expr = BinExpr { left; op = kind; right } in
             Expr { expr; pos }
