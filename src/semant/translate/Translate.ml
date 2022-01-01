@@ -102,11 +102,11 @@ let rec assert_can_be_int_expr = function
 let extract_cond = function
   | Expr e ->
     ( match e with
-    | Const 0 ->
+    | Const i when IRTree.is_falsy i ->
         fun { false_label; _ } ->
           IRTree.Jump
             { expr = IRTree.Name false_label; labels = [ false_label ] }
-    | Const _ ->
+    | Const i when IRTree.is_truthy i ->
         fun { true_label; _ } ->
           IRTree.Jump { expr = IRTree.Name true_label; labels = [ true_label ] }
     | _ ->
@@ -166,26 +166,106 @@ let subscript (array_access, level, offset_expr) =
           } ) )
 
 
+let jump_to_label label =
+  IRTree.Jump { expr = IRTree.Name label; labels = [ label ] }
+
+
 (* TODO: if either than or else is conditional expression, optimize according to page 162 *)
 let if_else (cond_expr, then_expr, else_expr) =
+  let regular_if cond then' else' =
+    let true_label = Temp.newlabel ()
+    and false_label = Temp.newlabel ()
+    and body_result = Temp.newtemp ()
+    (*** After branch ends *)
+    and join_label = Temp.newlabel () in
+    Expr
+      (IRTree.ESeq
+         ( Seq
+             [ cond { true_label; false_label }
+             ; IRTree.Label true_label
+             ; IRTree.Move { location = IRTree.Temp body_result; value = then' }
+             ; jump_to_label join_label
+             ; IRTree.Label false_label
+             ; IRTree.Move { location = IRTree.Temp body_result; value = else' }
+               (* No need to jump to join if branch is false *)
+             ; IRTree.Label join_label
+             ]
+         , IRTree.Temp body_result ) )
+  and and_if cond then_cond =
+    let cond_true_label = Temp.newlabel ()
+    and then_true_label = Temp.newlabel ()
+    and common_false_label = Temp.newlabel ()
+    and result = Temp.newtemp ()
+    and join_label = Temp.newlabel () in
+    Expr
+      (IRTree.ESeq
+         ( Seq
+             [ cond
+                 { true_label = cond_true_label
+                 ; false_label = common_false_label
+                 }
+             ; IRTree.Label cond_true_label
+             ; then_cond
+                 { true_label = then_true_label
+                 ; false_label = common_false_label
+                 }
+             ; IRTree.Label then_true_label
+             ; IRTree.Move
+                 { location = IRTree.Temp result; value = IRTree.const_true }
+             ; jump_to_label join_label
+             ; IRTree.Label common_false_label
+             ; IRTree.Move
+                 { location = IRTree.Temp result; value = IRTree.const_false }
+             ; IRTree.Label join_label
+             ]
+         , IRTree.Temp result ) )
+  in
   let cond = extract_cond cond_expr in
-  let then' = extract_expr then_expr
-  and else' = extract_expr else_expr
-  and true_label = Temp.newlabel ()
-  and false_label = Temp.newlabel ()
-  and body_result = Temp.newtemp ()
-  (*** After branch ends *)
-  and join_label = Temp.newlabel () in
-  Expr
-    (IRTree.ESeq
-       ( Seq
-           [ cond { true_label; false_label }
-           ; IRTree.Label true_label
-           ; IRTree.Move { location = IRTree.Temp body_result; value = then' }
-           ; IRTree.Jump { expr = IRTree.Const 0; labels = [ join_label ] }
-           ; IRTree.Label false_label
-           ; IRTree.Move { location = IRTree.Temp body_result; value = else' }
-             (* No need to jump to join if branch is false *)
-           ; IRTree.Label join_label
-           ]
-       , IRTree.Temp body_result ) )
+  match (then_expr, else_expr) with
+  | Cond then_cond, Expr else_expr when IRTree.is_int_and_falsy else_expr ->
+      (* And operator *)
+      and_if cond then_cond
+  | Expr then_expr, Cond _ when IRTree.is_int_and_truthy then_expr ->
+      (* Else operator *)
+      failwith "TODO or_if"
+  | _, _ ->
+      let then' = extract_expr then_expr
+      and else' = extract_expr else_expr in
+      regular_if cond then' else'
+
+
+let int i = Expr (IRTree.Const i)
+
+let syntax_binop_to_relop binop =
+  match binop with
+  | Syntax.BinaryLt ->
+      Ok IRTree.Lt
+  | Syntax.BinaryGt ->
+      Ok IRTree.Gt
+  | Syntax.BinaryLteq ->
+      Ok IRTree.Le
+  | Syntax.BinaryGteq ->
+      Ok IRTree.Ge
+  | _ ->
+      Error
+        (invalid_arg
+           (Printf.sprintf
+              "Can't convert %s to IRTree.relop"
+              (Syntax.show_binary_op binop) ) )
+
+
+let comparison (left_expr, binop, right_expr) =
+  let left_expr = extract_expr left_expr
+  and right_expr = extract_expr right_expr
+  and relop =
+    match syntax_binop_to_relop binop with
+    | Ok relop ->
+        relop
+    | Error exn ->
+        raise exn
+  in
+
+  Cond
+    (fun { true_label; false_label } ->
+      IRTree.CondJump
+        { cond = relop; left_expr; right_expr; true_label; false_label } )

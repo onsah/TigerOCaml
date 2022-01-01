@@ -43,3 +43,7 @@ val subscript : access * level * expr -> expr
 
 (* cond, then body, else body *)
 val if_else : expr * expr * expr -> expr
+
+val int : int -> expr
+
+val comparison : expr * Syntax.binary_op * expr -> expr
