@@ -181,23 +181,31 @@ let rec trans_expr
   and handle_lvalue_expr value_env type_env lvalue =
     trans_var value_env type_env current_level lvalue
   and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
-    let { translated_expr = { pos; _ }; ty = cond_ty } =
+    let { translated_expr = { pos; translated_expr = cond_expr; _ }
+        ; ty = cond_ty
+        } =
       trans_expr (value_env, type_env, cond) current_level
     in
     let _ = expecting_int cond_ty pos in
-    let { ty = then_ty; _ } =
+    let { ty = then_ty
+        ; translated_expr = { translated_expr = then_expr; _ }
+        ; _
+        } =
       trans_expr (value_env, type_env, then_arm) current_level
     in
     match else_arm_opt with
     | Some else_arm ->
-        let { translated_expr = { pos; _ }; ty = else_ty } =
+        let { translated_expr = { pos; translated_expr = else_expr; _ }
+            ; ty = else_ty
+            } =
           trans_expr (value_env, type_env, else_arm) current_level
         in
         (* Both can be nil, thus we just check for both side *)
         if is_types_compatible then_ty else_ty
         then
           { translated_expr =
-              { translated_expr = Translate.dummy_expr
+              { translated_expr =
+                  Translate.if_else (cond_expr, then_expr, else_expr)
               ; pos = if_pos
               ; debug = None
               }
@@ -321,35 +329,45 @@ let rec trans_expr
               (show_envEntry other)
           , pos )
   and handle_binary_expr value_env type_env (left, right, op) pos =
+    let { ty = left_ty
+        ; translated_expr = { translated_expr = left_expr; pos = left_pos; _ }
+        ; _
+        } =
+      trans_expr (value_env, type_env, left) current_level
+    and { ty = right_ty
+        ; translated_expr = { translated_expr = right_expr; pos = right_pos; _ }
+        ; _
+        } =
+      trans_expr (value_env, type_env, right) current_level
+    in
     match op with
     | BinaryEq | BinaryLtgt ->
-        let { ty = left_ty; _ } =
-          trans_expr (value_env, type_env, left) current_level
-        and { ty = right_ty; _ } =
-          trans_expr (value_env, type_env, right) current_level
-        in
-        ( match is_types_compatible left_ty right_ty with
-        | true ->
-            { translated_expr =
-                { translated_expr = Translate.dummy_expr; pos; debug = None }
-            ; ty = Types.Int
+      ( match is_types_compatible left_ty right_ty with
+      | true ->
+          { translated_expr =
+              { translated_expr = Translate.dummy_expr; pos; debug = None }
+          ; ty = Types.Int
+          }
+      | false ->
+          TigerError.semant_error
+            ( sprintf
+                "Type mismatch. Types should be same for equality. Left \
+                 expression is of type %s and right is %s "
+                (Types.show_ty left_ty)
+                (Types.show_ty right_ty)
+            , pos ) )
+    (* TODO: is_comparison_op *)
+    | BinaryLt | BinaryGt | BinaryLteq | BinaryGteq ->
+        { translated_expr =
+            { translated_expr = Translate.comparison (left_expr, op, right_expr)
+            ; pos
+            ; debug = None
             }
-        | false ->
-            TigerError.semant_error
-              ( sprintf
-                  "Type mismatch. Types should be same for equality. Left \
-                   expression is of type %s and right is %s "
-                  (Types.show_ty left_ty)
-                  (Types.show_ty right_ty)
-              , pos ) )
+        ; ty = Types.Int
+        }
     | _ ->
-        let { ty = ty_left; translated_expr = { pos = pos_left; _ } } =
-          trans_expr (value_env, type_env, left) current_level
-        and { ty = ty_right; translated_expr = { pos = pos_right; _ } } =
-          trans_expr (value_env, type_env, right) current_level
-        in
-        expecting_int ty_left pos_left ;
-        expecting_int ty_right pos_right ;
+        expecting_int left_ty left_pos ;
+        expecting_int right_ty right_pos ;
         { translated_expr =
             { translated_expr = Translate.dummy_expr; pos; debug = None }
         ; ty = Types.Int
@@ -387,9 +405,9 @@ let rec trans_expr
           , pos )
   in
   match expr with
-  | Syntax.IntExpr _ ->
+  | Syntax.IntExpr i ->
       { translated_expr =
-          { translated_expr = Translate.dummy_expr; pos; debug = None }
+          { translated_expr = Translate.int i; pos; debug = None }
       ; ty = Types.Int
       }
   | Syntax.NilExpr ->
