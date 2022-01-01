@@ -177,3 +177,8 @@ let extract_parent_var var =
       Some var
   | SimpleVar _ ->
       None
+
+
+let false_expr = IntExpr 0
+
+let true_expr = IntExpr 1
