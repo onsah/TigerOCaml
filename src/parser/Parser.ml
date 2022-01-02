@@ -25,22 +25,21 @@ let rec parse_file ~path =
   let text = In_channel.read_all path in
   match quickpass text with
   | Ok expr ->
-      expr
-  | Error _ ->
-      incrementalpass path text
+      Ok expr
+  | Error (TigerError.ParseError _) ->
+      Ok (incrementalpass path text)
+  | Error err ->
+      Error err
 
 
 (*Fast pass, if no error results with better performance*)
-and quickpass text : (Syntax.expr, unit) result =
+and quickpass text : (Syntax.expr, exn) result =
   let lexbuf = Lexing.from_string text in
   match ParserYacc.program Lexer.token lexbuf with
   | expr ->
       Ok expr
-  | exception Lexer.Error err ->
-      Printf.eprintf "Error: %s" err ;
-      exit 1
-  | exception ParserYacc.Error ->
-      Error ()
+  | exception exn ->
+      Error exn
 
 
 (*We only run this to find the error location in the parsing phase.*)
