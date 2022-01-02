@@ -2,16 +2,7 @@
  (name TigerC)
  (preprocess
   (pps ppx_deriving.show ppx_deriving.ord))
- (libraries
-  menhirLib
-  core
-  symbol
-  lexer
-  unitActionsParser
-  syntax
-  semant
-  translated
-  findEscape)
+ (libraries core symbol syntax semant translated findEscape parser)
  (modules TigerC))
 
 (library
