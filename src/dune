@@ -2,7 +2,7 @@
  (name TigerC)
  (preprocess
   (pps ppx_deriving.show ppx_deriving.ord))
- (libraries core symbol syntax semant translated findEscape parser)
+ (libraries core symbol syntax semant translated findEscape parser main)
  (modules TigerC))
 
 (library

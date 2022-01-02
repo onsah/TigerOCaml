@@ -1,0 +1,4 @@
+(library
+ (name main)
+ (modules Main)
+ (libraries parser syntax translated core findEscape semant))
