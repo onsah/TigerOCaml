@@ -204,7 +204,7 @@ rule token = parse
 (*End symbols*)
 | _ as chr
     {
-      TigerError.lexError "unexpected character" (Some chr) !num_lines !num_cols
+      raise (TigerError.lexError "unexpected character" (Some chr) !num_lines !num_cols)
     }
 and stringRule = parse 
 | '"'
@@ -225,7 +225,7 @@ and stringRule = parse
     }
 | eof
     {
-      TigerError.lexError "Unclosed string" None !num_lines !num_cols
+      raise (TigerError.lexError "Unclosed string" None !num_lines !num_cols)
     }
 | _ as c
     {
@@ -276,11 +276,11 @@ and escapeRule = parse
     }
 | eof 
     {
-      TigerError.lexError "Unclosed string" None !num_lines !num_cols
+      raise (TigerError.lexError "Unclosed string" None !num_lines !num_cols)
     }
 | _ as chr
     {
-      TigerError.lexError "invalid escape rule" (Some chr) !num_lines !num_cols
+      raise (TigerError.lexError "invalid escape rule" (Some chr) !num_lines !num_cols)
     }
 and controlRule = parse
 (*Start escapes*)
@@ -511,11 +511,11 @@ and controlRule = parse
 (*End escapes*)
 | eof 
     {
-      TigerError.lexError "Unclosed string" None !num_lines !num_cols
+      raise (TigerError.lexError "Unclosed string" None !num_lines !num_cols)
     }
 | _ as chr
     {
-      TigerError.lexError "invalid control escape" (Some chr) !num_lines !num_cols
+      raise (TigerError.lexError "invalid control escape" (Some chr) !num_lines !num_cols)
     }
 and formatRule = parse
 | newline
@@ -535,11 +535,11 @@ and formatRule = parse
     }
 | eof 
     {
-      TigerError.lexError "Unclosed string" None !num_lines !num_cols
+      raise (TigerError.lexError "Unclosed string" None !num_lines !num_cols)
     }
 | _ as chr
     {
-      TigerError.lexError "invalid format character" (Some chr) !num_lines !num_cols
+      raise (TigerError.lexError "invalid format character" (Some chr) !num_lines !num_cols)
     }
 and commentRule = parse
 | "*/"
@@ -552,7 +552,7 @@ and commentRule = parse
         else 
           commentRule lexbuf)
       else
-        TigerError.lexError "Unmatched comment close" None !num_lines !num_cols
+        raise (TigerError.lexError "Unmatched comment close" None !num_lines !num_cols)
     }
 | "/*"
     {
@@ -567,5 +567,5 @@ and commentRule = parse
     }
 | eof
     {
-      TigerError.lexError "Unclosed comment" None !num_lines !num_cols
+      raise (TigerError.lexError "Unclosed comment" None !num_lines !num_cols)
     }
