@@ -1,23 +1,28 @@
 (menhir
- (modules parser)
+ (modules ParserYacc)
  (flags -lg 1 -la 1 -lc 2 --explain --interpret-show-cst))
 
 (rule
  (action
   (with-stdout-to
-   unitActionsParser.mly
-   (run menhir %{dep:parser.mly} --only-preprocess-u))))
+   UnitActionsParser.mly
+   (run menhir %{dep:ParserYacc.mly} --only-preprocess-u))))
 
 (menhir
- (modules unitActionsParser)
- (flags --table --external-tokens Parser))
+ (modules UnitActionsParser)
+ (flags --table --external-tokens ParserYacc))
 
 (library
- (name parser)
- (modules Parser)
+ (name parserYacc)
+ (modules ParserYacc)
  (libraries syntax tigerTokens tigerError))
 
 (library
  (name unitActionsParser)
  (modules UnitActionsParser)
- (libraries parser menhirLib))
+ (libraries parserYacc menhirLib))
+
+(library
+ (name parser)
+ (modules Parser)
+ (libraries unitActionsParser parserYacc lexer menhirLib core tigerError))

@@ -4,7 +4,7 @@
 (library
  (name lexer)
  (modules lexer)
- (libraries parser tigerError menhirLib))
+ (libraries parserYacc tigerError menhirLib))
 
 (library
  (name tigerTokens)

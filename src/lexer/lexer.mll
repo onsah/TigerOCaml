@@ -1,5 +1,5 @@
 {
-  open Parser
+  open ParserYacc
   open TigerError
   open Syntax
 
