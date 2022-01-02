@@ -1,3 +1,3 @@
 (tests
- (names TranslateTest)
- (libraries ounit2 ir translate temp))
+ (names TranslateTest TranslateE2ETest)
+ (libraries ounit2 ir translate temp main))
