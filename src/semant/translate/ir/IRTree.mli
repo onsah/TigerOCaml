@@ -80,3 +80,7 @@ val is_int_and_falsy : expr -> bool
 val is_truthy : int -> bool
 
 val is_falsy : int -> bool
+
+module BuiltIns : sig
+  val string_equal : Symbol.symbol
+end

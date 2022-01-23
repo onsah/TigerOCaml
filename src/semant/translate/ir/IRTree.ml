@@ -83,3 +83,7 @@ let is_int_and_truthy expr =
 
 
 let is_int_and_falsy expr = match expr with Const i -> is_falsy i | _ -> false
+
+module BuiltIns = struct
+  let string_equal = Symbol.symbol "stringEqual"
+end
