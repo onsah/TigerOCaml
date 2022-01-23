@@ -341,25 +341,28 @@ let rec trans_expr
       trans_expr (value_env, type_env, right) current_level
     in
     match op with
-    | BinaryEq | BinaryLtgt ->
-      ( match is_types_compatible left_ty right_ty with
-      | true ->
-          { translated_expr =
-              { translated_expr = Translate.dummy_expr; pos; debug = None }
-          ; ty = Types.Int
-          }
-      | false ->
-          TigerError.semant_error
-            ( sprintf
-                "Type mismatch. Types should be same for equality. Left \
-                 expression is of type %s and right is %s "
-                (Types.show_ty left_ty)
-                (Types.show_ty right_ty)
-            , pos ) )
-    (* TODO: is_comparison_op *)
-    | BinaryLt | BinaryGt | BinaryLteq | BinaryGteq ->
+    | BinaryEq | BinaryLtgt | BinaryLt | BinaryGt | BinaryLteq | BinaryGteq ->
+        ignore
+          ( match is_types_compatible left_ty right_ty with
+          | true ->
+              { translated_expr =
+                  { translated_expr = Translate.dummy_expr; pos; debug = None }
+              ; ty = Types.Int
+              }
+          | false ->
+              TigerError.semant_error
+                ( sprintf
+                    "Type mismatch. Types should be same for comparison. Left \
+                     expression is of type %s and right is %s "
+                    (Types.show_ty left_ty)
+                    (Types.show_ty right_ty)
+                , pos ) ) ;
         { translated_expr =
-            { translated_expr = Translate.comparison (left_expr, op, right_expr)
+            { translated_expr =
+                Translate.comparison
+                  ( { expr = left_expr; ty = left_ty }
+                  , op
+                  , { expr = right_expr; ty = right_ty } )
             ; pos
             ; debug = None
             }

@@ -198,6 +198,7 @@ let if_else (cond_expr, then_expr, else_expr) =
              ]
          , IRTree.Temp body_result ) )
   (* if optimized for and expressions *)
+  (*TODO: make recursive by returning cond*)
   and and_if cond then_cond =
     let cond_true_label = Temp.newlabel ()
     and then_true_label = Temp.newlabel ()
@@ -311,11 +312,35 @@ let comparison
   | Types.String, Types.String ->
     ( match (left_expr, right_expr) with
     | IRTree.Name _, IRTree.Name _ ->
-        Expr
-          (IRTree.Call
-             { func = IRTree.Name IRTree.BuiltIns.string_equal
-             ; args = [ left_expr; right_expr ]
-             } )
+        let string_equals_expr =
+          IRTree.Call
+            { func = IRTree.Name IRTree.BuiltIns.string_equal
+            ; args = [ left_expr; right_expr ]
+            }
+        in
+        ( match relop with
+        | IRTree.Eq ->
+            Cond
+              (fun { true_label; false_label } ->
+                IRTree.CondJump
+                  { cond = IRTree.Eq
+                  ; right_expr = string_equals_expr
+                  ; left_expr = IRTree.const_true
+                  ; true_label
+                  ; false_label
+                  } )
+        | IRTree.Ne ->
+            Cond
+              (fun { true_label; false_label } ->
+                IRTree.CondJump
+                  { cond = IRTree.Eq
+                  ; right_expr = string_equals_expr
+                  ; left_expr = IRTree.const_false
+                  ; true_label
+                  ; false_label
+                  } )
+        | _ ->
+            failwith "TODO" )
     | _ ->
         raise
         @@ Invalid_argument
