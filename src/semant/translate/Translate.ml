@@ -191,6 +191,7 @@ let if_else (cond_expr, then_expr, else_expr) =
              ; IRTree.Label join_label
              ]
          , IRTree.Temp body_result ) )
+  (* if optimized for and expressions *)
   and and_if cond then_cond =
     let cond_true_label = Temp.newlabel ()
     and then_true_label = Temp.newlabel ()
@@ -219,15 +220,44 @@ let if_else (cond_expr, then_expr, else_expr) =
              ; IRTree.Label join_label
              ]
          , IRTree.Temp result ) )
+  (* if optimized for or expressions*)
+  and or_if cond else_cond =
+    let cond_false_label = Temp.newlabel ()
+    and else_false_label = Temp.newlabel ()
+    and common_true_label = Temp.newlabel ()
+    and result = Temp.newtemp ()
+    and join_label = Temp.newlabel () in
+    Expr
+      (IRTree.ESeq
+         ( Seq
+             [ cond
+                 { true_label = common_true_label
+                 ; false_label = cond_false_label
+                 }
+             ; IRTree.Label cond_false_label
+             ; else_cond
+                 { true_label = common_true_label
+                 ; false_label = else_false_label
+                 }
+             ; IRTree.Label else_false_label
+             ; IRTree.Move
+                 { location = IRTree.Temp result; value = IRTree.const_false }
+             ; jump_to_label join_label
+             ; IRTree.Label common_true_label
+             ; IRTree.Move
+                 { location = IRTree.Temp result; value = IRTree.const_true }
+             ; IRTree.Label join_label
+             ]
+         , IRTree.Temp result ) )
   in
   let cond = extract_cond cond_expr in
   match (then_expr, else_expr) with
   | Cond then_cond, Expr else_expr when IRTree.is_int_and_falsy else_expr ->
       (* And operator *)
       and_if cond then_cond
-  | Expr then_expr, Cond _ when IRTree.is_int_and_truthy then_expr ->
+  | Expr then_expr, Cond else_cond when IRTree.is_int_and_truthy then_expr ->
       (* Else operator *)
-      failwith "TODO or_if"
+      or_if cond else_cond
   | _, _ ->
       let then' = extract_expr then_expr
       and else' = extract_expr else_expr in
