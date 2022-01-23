@@ -46,6 +46,12 @@ type expr =
   | Cond of (cond_args -> IRTree.stmt)
 [@@deriving show]
 
+type typed_expr =
+  { expr : expr
+  ; ty : Types.ty
+  }
+[@@deriving show]
+
 let extract_expr = function
   | Expr e ->
       e
@@ -268,6 +274,10 @@ let int i = Expr (IRTree.Const i)
 
 let syntax_binop_to_relop binop =
   match binop with
+  | Syntax.BinaryEq ->
+      Ok IRTree.Eq
+  | Syntax.BinaryLtgt ->
+      Ok IRTree.Ne
   | Syntax.BinaryLt ->
       Ok IRTree.Lt
   | Syntax.BinaryGt ->
@@ -284,7 +294,10 @@ let syntax_binop_to_relop binop =
               (Syntax.show_binary_op binop) ) )
 
 
-let comparison (left_expr, binop, right_expr) =
+let comparison
+    ( { expr = left_expr; ty = left_ty }
+    , binop
+    , { expr = right_expr; ty = right_ty } ) =
   let left_expr = extract_expr left_expr
   and right_expr = extract_expr right_expr
   and relop =
@@ -294,8 +307,32 @@ let comparison (left_expr, binop, right_expr) =
     | Error exn ->
         raise exn
   in
-
-  Cond
-    (fun { true_label; false_label } ->
-      IRTree.CondJump
-        { cond = relop; left_expr; right_expr; true_label; false_label } )
+  match (left_ty, right_ty) with
+  | Types.String, Types.String ->
+    ( match (left_expr, right_expr) with
+    | IRTree.Name _, IRTree.Name _ ->
+        Expr
+          (IRTree.Call
+             { func = IRTree.Name IRTree.BuiltIns.string_equal
+             ; args = [ left_expr; right_expr ]
+             } )
+    | _ ->
+        raise
+        @@ Invalid_argument
+             (Printf.sprintf
+                "Expected name ir expr for string comparison, got: left=%s, \
+                 right=%s"
+                (IRTree.show_expr left_expr)
+                (IRTree.show_expr right_expr) ) )
+  | _ when left_ty = right_ty ->
+      Cond
+        (fun { true_label; false_label } ->
+          IRTree.CondJump
+            { cond = relop; left_expr; right_expr; true_label; false_label } )
+  | _ ->
+      raise
+      @@ Invalid_argument
+           (Printf.sprintf
+              "Can't compare, types are different: left=%s, right=%s"
+              (Types.show_ty left_ty)
+              (Types.show_ty right_ty) )

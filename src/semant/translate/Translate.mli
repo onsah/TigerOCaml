@@ -16,6 +16,12 @@ type expr =
   | Cond of (cond_args -> IRTree.stmt)
 [@@deriving show]
 
+type typed_expr =
+  { expr : expr
+  ; ty : Types.ty
+  }
+[@@deriving show]
+
 (* TODO: delete it *)
 val dummy_expr : expr
 
@@ -46,4 +52,4 @@ val if_else : expr * expr * expr -> expr
 
 val int : int -> expr
 
-val comparison : expr * Syntax.binary_op * expr -> expr
+val comparison : typed_expr * Syntax.binary_op * typed_expr -> expr
