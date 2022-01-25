@@ -1,4 +1,4 @@
 if 0 > 1 then 
-	"Plan A" 
+	10
 else 
-	"Plan B"
+	15

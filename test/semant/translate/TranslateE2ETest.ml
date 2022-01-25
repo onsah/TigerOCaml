@@ -6,7 +6,6 @@ let test_regular_if _ =
     Result.get_ok
       (Main.analyze_file ~path:"../../scripts/translate/regular_if.tig")
   in
-  ignore (assert_equal expr.ty Types.String) ;
   ignore
     ( match expr.translated_expr.translated_expr with
     | Translate.Expr
