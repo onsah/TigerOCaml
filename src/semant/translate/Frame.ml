@@ -22,10 +22,13 @@ module type Frame = sig
   val expr : access -> fp:IRTree.expr -> IRTree.expr
 
   type built_in_call =
-    | StrEq
-    | StrLt
-    | StrLte
+    | StrEq (* stringEqual: string * string -> bool *)
+    | StrLt (* stringLessThan: string * string -> bool *)
+    | StrLte (* stringLessThanOrEqual: string * string -> bool *)
     | Malloc
+    (* malloc: size: int -> pointer *)
+    | InitArray
+  (* initialize array: size: int * init_value: expr -> pointer *)
 
   val external_call : func:built_in_call -> args:IRTree.expr list -> IRTree.expr
 
@@ -108,6 +111,7 @@ module MipsFrame : Frame = struct
     | StrLt
     | StrLte
     | Malloc
+    | InitArray
 
   let external_call ~func ~args =
     let built_in_symbol func =
@@ -121,6 +125,8 @@ module MipsFrame : Frame = struct
             "stringLessThanOrEqual"
         | Malloc ->
             "malloc"
+        | InitArray ->
+            "initArray"
       in
       Symbol.symbol name
     in
