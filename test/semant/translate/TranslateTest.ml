@@ -81,6 +81,64 @@ let test_simple_var_accessing_parent_variable _ =
              } ) ) )
 
 
+let test_record _ =
+  let fields =
+    [ Translate.Expr (IRTree.Const 1)
+    ; Translate.Expr (IRTree.Const 2)
+    ; Translate.Expr (IRTree.Const 3)
+    ]
+  in
+  let result = Translate.record ~fields in
+  ignore
+    ( match result with
+    | Expr
+        (IRTree.ESeq
+          ( IRTree.Seq
+              [ IRTree.Move
+                  { location = IRTree.Temp r'
+                  ; value =
+                      IRTree.Call
+                        { args = [ IRTree.Const 12 ]; func = IRTree.Name _ }
+                  }
+              ; IRTree.Move
+                  { location =
+                      IRTree.Binop
+                        { op = IRTree.Plus
+                        ; left = IRTree.Temp r''
+                        ; right = IRTree.Const 0
+                        }
+                  ; value = e'
+                  }
+              ; IRTree.Move
+                  { location =
+                      IRTree.Binop
+                        { op = IRTree.Plus
+                        ; left = IRTree.Temp r'''
+                        ; right = IRTree.Const 4
+                        }
+                  ; value = e''
+                  }
+              ; IRTree.Move
+                  { location =
+                      IRTree.Binop
+                        { op = IRTree.Plus
+                        ; left = IRTree.Temp r''''
+                        ; right = IRTree.Const 8
+                        }
+                  ; value = e'''
+                  }
+              ]
+          , IRTree.Temp r ) )
+      when r = r'
+           && r = r''
+           && r = r'''
+           && r = r''''
+           && fields = List.map (fun e -> Translate.Expr e) [ e'; e''; e''' ] ->
+        assert_bool "matched pattern" true
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
 let suite =
   "Translate"
   >::: [ "extract_cond should return jump false label for const 0"
@@ -91,6 +149,7 @@ let suite =
          >:: test_simple_var_accessing_own_variable
        ; "test_simple_var_accessing_parent_variable"
          >:: test_simple_var_accessing_parent_variable
+       ; "test_record" >:: test_record
        ]
 
 

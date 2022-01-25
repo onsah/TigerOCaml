@@ -391,3 +391,32 @@ let string str =
   let symbol = Symbol.symbol str in
   Frame.string ~label:symbol ~literal:str ;
   Expr (IRTree.Name symbol)
+
+
+let record ~fields =
+  let result_temp = Temp.newtemp () in
+  Expr
+    (IRTree.ESeq
+       ( IRTree.Seq
+           (IRTree.Move
+              { value =
+                  Frame.external_call
+                    ~func:Frame.Malloc
+                    ~args:
+                      [ IRTree.Const (List.length fields * Frame.word_size) ]
+              ; location = IRTree.Temp result_temp
+              }
+            ::
+            List.mapi
+              (fun i e ->
+                IRTree.Move
+                  { value = extract_expr e
+                  ; location =
+                      IRTree.Binop
+                        { op = IRTree.Plus
+                        ; left = IRTree.Temp result_temp
+                        ; right = IRTree.Const (i * Frame.word_size)
+                        }
+                  } )
+              fields )
+       , IRTree.Temp result_temp ) )
