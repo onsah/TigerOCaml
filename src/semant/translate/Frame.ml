@@ -27,6 +27,9 @@ module type Frame = sig
     | StrLte
 
   val external_call : func:built_in_call -> args:IRTree.expr list -> IRTree.expr
+
+  (* Generates assembly fragment for a string *)
+  val string : label:Symbol.symbol -> literal:string -> unit
 end
 
 module MipsFrame : Frame = struct
@@ -119,4 +122,7 @@ module MipsFrame : Frame = struct
     in
     let symbol = built_in_symbol func in
     IRTree.Call { func = IRTree.Name symbol; args }
+
+
+  let string ~label:_ ~literal:_ = failwith "TODO: implement"
 end

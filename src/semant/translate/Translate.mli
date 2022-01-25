@@ -52,4 +52,6 @@ val if_else : expr * expr * expr -> expr
 
 val int : int -> expr
 
+val string : string -> expr
+
 val comparison : typed_expr * Syntax.binary_op * typed_expr -> expr

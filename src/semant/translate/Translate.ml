@@ -385,3 +385,9 @@ let comparison
               "Can't compare, types are different: left=%s, right=%s"
               (Types.show_ty left_ty)
               (Types.show_ty right_ty) )
+
+
+let string str =
+  let symbol = Symbol.symbol str in
+  Frame.string ~label:symbol ~literal:str ;
+  Expr (IRTree.Name symbol)

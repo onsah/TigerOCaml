@@ -418,9 +418,9 @@ let rec trans_expr
           { translated_expr = Translate.dummy_expr; pos; debug = None }
       ; ty = Types.Nil
       }
-  | Syntax.StringExpr _ ->
+  | Syntax.StringExpr str ->
       { translated_expr =
-          { translated_expr = Translate.dummy_expr; pos; debug = None }
+          { translated_expr = Translate.string str; pos; debug = None }
       ; ty = Types.String
       }
   | Syntax.CallExpr { func; args } ->
