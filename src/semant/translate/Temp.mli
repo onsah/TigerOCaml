@@ -1,12 +1,10 @@
-type temp
-[@@deriving show]
+type temp [@@deriving show]
 
 val newtemp : unit -> temp
 
 val makestring : temp -> string
 
-type label = Symbol.symbol
-[@@deriving show]
+type label = Symbol.symbol [@@deriving show]
 
 val newlabel : unit -> label
 
