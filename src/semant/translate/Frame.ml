@@ -20,6 +20,13 @@ module type Frame = sig
   val fp : Temp.temp
 
   val expr : access -> fp:IRTree.expr -> IRTree.expr
+
+  type built_in_call =
+    | StrEq
+    | StrLt
+    | StrLte
+
+  val external_call : func:built_in_call -> args:IRTree.expr list -> IRTree.expr
 end
 
 module MipsFrame : Frame = struct
@@ -90,4 +97,26 @@ module MipsFrame : Frame = struct
     in
     frame.locals := new_local :: !(frame.locals) ;
     new_local
+
+
+  type built_in_call =
+    | StrEq
+    | StrLt
+    | StrLte
+
+  let external_call ~func ~args =
+    let built_in_symbol func =
+      let name =
+        match func with
+        | StrEq ->
+            "stringEqual"
+        | StrLt ->
+            "stringLessThan"
+        | StrLte ->
+            "stringLessThanOrEqual"
+      in
+      Symbol.symbol name
+    in
+    let symbol = built_in_symbol func in
+    IRTree.Call { func = IRTree.Name symbol; args }
 end
