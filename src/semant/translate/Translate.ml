@@ -312,35 +312,59 @@ let comparison
   | Types.String, Types.String ->
     ( match (left_expr, right_expr) with
     | IRTree.Name _, IRTree.Name _ ->
-        let string_equals_expr =
-          IRTree.Call
-            { func = IRTree.Name IRTree.BuiltIns.string_equal
-            ; args = [ left_expr; right_expr ]
-            }
+        let make_cond call_expr expected =
+          Cond
+            (fun { true_label; false_label } ->
+              IRTree.CondJump
+                { cond = IRTree.Eq
+                ; right_expr = call_expr
+                ; left_expr = expected
+                ; true_label
+                ; false_label
+                } )
         in
         ( match relop with
         | IRTree.Eq ->
-            Cond
-              (fun { true_label; false_label } ->
-                IRTree.CondJump
-                  { cond = IRTree.Eq
-                  ; right_expr = string_equals_expr
-                  ; left_expr = IRTree.const_true
-                  ; true_label
-                  ; false_label
-                  } )
+            make_cond
+              (Frame.external_call
+                 ~func:Frame.StrEq
+                 ~args:[ left_expr; right_expr ] )
+              IRTree.const_true
         | IRTree.Ne ->
-            Cond
-              (fun { true_label; false_label } ->
-                IRTree.CondJump
-                  { cond = IRTree.Eq
-                  ; right_expr = string_equals_expr
-                  ; left_expr = IRTree.const_false
-                  ; true_label
-                  ; false_label
-                  } )
+            make_cond
+              (Frame.external_call
+                 ~func:Frame.StrEq
+                 ~args:[ left_expr; right_expr ] )
+              IRTree.const_false
+        | IRTree.Lt ->
+            make_cond
+              (Frame.external_call
+                 ~func:Frame.StrLt
+                 ~args:[ left_expr; right_expr ] )
+              IRTree.const_true
+        | IRTree.Gt ->
+            make_cond
+              (Frame.external_call
+                 ~func:Frame.StrLt
+                 ~args:[ left_expr; right_expr ] )
+              IRTree.const_false
+        | IRTree.Le ->
+            make_cond
+              (Frame.external_call
+                 ~func:Frame.StrLte
+                 ~args:[ left_expr; right_expr ] )
+              IRTree.const_true
+        | IRTree.Ge ->
+            make_cond
+              (Frame.external_call
+                 ~func:Frame.StrLte
+                 ~args:[ left_expr; right_expr ] )
+              IRTree.const_false
         | _ ->
-            failwith "TODO" )
+            failwith
+            @@ Printf.sprintf
+                 "string equality not supported for relop: %s"
+                 (IRTree.show_relop relop) )
     | _ ->
         raise
         @@ Invalid_argument
