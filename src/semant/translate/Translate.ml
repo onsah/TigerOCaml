@@ -420,3 +420,23 @@ let record ~fields =
                   } )
               fields )
        , IRTree.Temp result_temp ) )
+
+
+let array ~size ~init_expr =
+  let array_temp = Temp.newtemp () in
+  Expr
+    (IRTree.ESeq
+       ( IRTree.Seq
+           [ Move
+               { value =
+                   Frame.external_call
+                     ~func:Frame.Malloc
+                     ~args:[ IRTree.Const (size * Frame.word_size) ]
+               ; location = IRTree.Temp array_temp
+               }
+           ; IRTree.Expr
+               (Frame.external_call
+                  ~func:Frame.InitArray
+                  ~args:[ IRTree.Const size; extract_expr init_expr ] )
+           ]
+       , IRTree.Temp array_temp ) )

@@ -139,6 +139,31 @@ let test_record _ =
         assert_bool "didn't match pattern" false )
 
 
+let test_array _ =
+  let size = 4
+  and init_expr = Translate.Expr (IRTree.Const 77) in
+  let result = Translate.array ~size ~init_expr in
+  ignore
+    ( match result with
+    | Translate.Expr
+        (IRTree.ESeq
+          ( IRTree.Seq
+              [ (* malloc *)
+              IRTree.Move
+                { location = IRTree.Temp t'
+                ; value = IRTree.Call { args = [ IRTree.Const 16 ]; _ }
+                }
+              ; (* initialize the values *)
+                IRTree.Expr
+                  (IRTree.Call { args = [ IRTree.Const 4; init_expr' ]; _ })
+              ]
+          , IRTree.Temp t ) )
+      when t = t' && init_expr = Expr init_expr' ->
+        assert_bool "matched pattern" true
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
 let suite =
   "Translate"
   >::: [ "extract_cond should return jump false label for const 0"
@@ -150,6 +175,7 @@ let suite =
        ; "test_simple_var_accessing_parent_variable"
          >:: test_simple_var_accessing_parent_variable
        ; "test_record" >:: test_record
+       ; "test_array" >:: test_array
        ]
 
 
