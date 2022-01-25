@@ -25,6 +25,7 @@ module type Frame = sig
     | StrEq
     | StrLt
     | StrLte
+    | Malloc
 
   val external_call : func:built_in_call -> args:IRTree.expr list -> IRTree.expr
 
@@ -106,6 +107,7 @@ module MipsFrame : Frame = struct
     | StrEq
     | StrLt
     | StrLte
+    | Malloc
 
   let external_call ~func ~args =
     let built_in_symbol func =
@@ -117,6 +119,8 @@ module MipsFrame : Frame = struct
             "stringLessThan"
         | StrLte ->
             "stringLessThanOrEqual"
+        | Malloc ->
+            "malloc"
       in
       Symbol.symbol name
     in
