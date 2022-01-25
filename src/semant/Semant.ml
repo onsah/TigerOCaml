@@ -395,8 +395,20 @@ let rec trans_expr
         let _ =
           type_check_fields field_names_with_types expected_field_types typ pos
         in
+        (* after type check*)
+        let exprs =
+          List.map
+            (fun f ->
+              (trans_expr (value_env, type_env, f.expr) current_level)
+                .translated_expr
+                .translated_expr )
+            fields
+        in
         { translated_expr =
-            { translated_expr = Translate.dummy_expr; pos; debug = None }
+            { translated_expr = Translate.record ~fields:exprs
+            ; pos
+            ; debug = None
+            }
         ; ty = record_ty
         }
     | found_ty ->
