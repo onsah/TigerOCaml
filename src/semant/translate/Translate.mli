@@ -58,4 +58,6 @@ val record : fields:expr list -> expr
 
 val array : size:int -> init_expr:expr -> expr
 
+val while' : cond:expr -> body:expr -> expr
+
 val comparison : typed_expr * Syntax.binary_op * typed_expr -> expr

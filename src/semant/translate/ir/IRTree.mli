@@ -71,6 +71,9 @@ val const_true : expr
 
 val const_false : expr
 
+(* Useful for returning some value for expressions of type unit *)
+val const_unit : expr
+
 val jump_single_label : label -> stmt
 
 val is_int_and_truthy : expr -> bool

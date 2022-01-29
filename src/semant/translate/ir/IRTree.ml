@@ -71,6 +71,8 @@ let const_true = Const 1
 
 let const_false = Const 0
 
+let const_unit = Const 0
+
 (*Convenience function to jump to a single label*)
 let jump_single_label label = Jump { expr = Name label; labels = [ label ] }
 

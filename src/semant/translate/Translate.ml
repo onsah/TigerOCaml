@@ -440,3 +440,28 @@ let array ~size ~init_expr =
                   ~args:[ IRTree.Const size; extract_expr init_expr ] )
            ]
        , IRTree.Temp array_temp ) )
+
+
+let while' ~cond ~body =
+  let test_label = Temp.newlabel ()
+  and done_label = Temp.newlabel ()
+  and cont_label = Temp.newlabel () in
+  Expr
+    (IRTree.ESeq
+       ( IRTree.Seq
+           [ IRTree.Label test_label
+           ; IRTree.CondJump
+               { cond = IRTree.Eq
+               ; left_expr = extract_expr cond
+               ; right_expr = IRTree.const_true
+               ; true_label = cont_label
+               ; false_label = done_label
+               }
+           ; IRTree.Label cont_label
+           ; IRTree.Expr (extract_expr body)
+           ; IRTree.jump_single_label test_label
+           ; IRTree.Label done_label
+           ]
+       , IRTree.const_unit
+         (* We need to supply some value since while is expression. It will be discarded properly. *)
+       ) )

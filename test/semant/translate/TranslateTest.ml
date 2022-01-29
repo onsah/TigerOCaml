@@ -139,6 +139,60 @@ let test_record _ =
         assert_bool "didn't match pattern" false )
 
 
+let test_while _ =
+  let body = IRTree.Temp (Temp.newtemp ())
+  and cond = IRTree.Temp (Temp.newtemp ()) in
+  let result = Translate.while' ~cond:(Expr cond) ~body:(Expr body) in
+  ignore
+    ( match result with
+    | Expr
+        (IRTree.ESeq
+          ( IRTree.Seq
+              [ IRTree.Label test
+              ; IRTree.CondJump
+                  { cond = IRTree.Eq
+                  ; left_expr = cond_expr
+                  ; right_expr = true_expr
+                  ; true_label = true_label'
+                  ; false_label = false_label'
+                  }
+              ; IRTree.Label cont_label
+              ; IRTree.Expr body'
+              ; IRTree.Jump { labels = [ test' ]; _ }
+              ; IRTree.Label while_done
+              ]
+          , dummy_value ) ) ->
+        assert_equal
+          ~msg:
+            "condition true label must be continue label to keep while loop \
+             iterating"
+          true_label'
+          cont_label ;
+        assert_equal
+          ~msg:"condition false label must be the label exiting while loop"
+          false_label'
+          while_done ;
+        assert_equal
+          ~msg:"condition must be condition expression given"
+          cond_expr
+          cond ;
+        assert_equal
+          ~msg:"true expression of the condition must be const_true"
+          true_expr
+          IRTree.const_true ;
+        assert_equal ~msg:"body must be body expression given" body' body ;
+        assert_equal
+          ~msg:"while end should jump back to the test label"
+          test'
+          test ;
+        assert_equal
+          ~msg:"while result expression should be const_unit"
+          dummy_value
+          IRTree.const_unit
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
 let test_array _ =
   let size = 4
   and init_expr = Translate.Expr (IRTree.Const 77) in
@@ -176,6 +230,7 @@ let suite =
          >:: test_simple_var_accessing_parent_variable
        ; "test_record" >:: test_record
        ; "test_array" >:: test_array
+       ; "test_while" >:: test_while
        ]
 
 
