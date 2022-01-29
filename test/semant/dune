@@ -1,0 +1,3 @@
+(tests
+ (names SemantTest)
+ (libraries ounit2))

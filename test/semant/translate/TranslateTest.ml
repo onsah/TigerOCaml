@@ -141,8 +141,11 @@ let test_record _ =
 
 let test_while _ =
   let body = IRTree.Temp (Temp.newtemp ())
-  and cond = IRTree.Temp (Temp.newtemp ()) in
-  let result = Translate.while' ~cond:(Expr cond) ~body:(Expr body) in
+  and cond = IRTree.Temp (Temp.newtemp ())
+  and break_label = Temp.newlabel () in
+  let result =
+    Translate.while' ~cond:(Expr cond) ~body:(Expr body) ~break_label
+  in
   ignore
     ( match result with
     | Expr
@@ -172,6 +175,10 @@ let test_while _ =
           ~msg:"condition false label must be the label exiting while loop"
           false_label'
           while_done ;
+        assert_equal
+          ~msg:"done label must be the break label given"
+          while_done
+          break_label ;
         assert_equal
           ~msg:"condition must be condition expression given"
           cond_expr

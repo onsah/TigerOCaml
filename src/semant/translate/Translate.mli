@@ -58,7 +58,8 @@ val record : fields:expr list -> expr
 
 val array : size:int -> init_expr:expr -> expr
 
-val while' : cond:expr -> body:expr -> expr
+(* Returns the translate expression and break label *)
+val while' : cond:expr -> body:expr -> break_label:Temp.label -> expr
 
 val break' : Temp.label -> expr
 

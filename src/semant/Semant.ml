@@ -232,17 +232,26 @@ let rec trans_expr
         ; ty = Types.Unit
         }
   and handle_while_expr value_env type_env (cond, body) pos =
-    let { translated_expr = { pos = cond_pos; _ }; ty = cond_ty } =
+    let { translated_expr = { pos = cond_pos; translated_expr = cond_expr; _ }
+        ; ty = cond_ty
+        } =
       trans_expr (value_env, type_env, cond, None) current_level
     in
     let _ = expecting_int cond_ty cond_pos in
-    let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-      trans_expr (value_env, type_env, body, None) current_level
+    let break_label = Temp.newlabel () in
+    let { ty = body_ty
+        ; translated_expr = { pos = body_pos; translated_expr = body_expr; _ }
+        } =
+      trans_expr (value_env, type_env, body, Some break_label) current_level
     in
     match body_ty with
     | Types.Unit ->
         { translated_expr =
-            { translated_expr = Translate.dummy_expr; pos; debug = None }
+            { translated_expr =
+                Translate.while' ~cond:cond_expr ~body:body_expr ~break_label
+            ; pos
+            ; debug = None
+            }
         ; ty = Types.Unit
         }
     | body_ty ->
@@ -457,10 +466,21 @@ let rec trans_expr
   | Syntax.ForExpr { var; from; to'; body; escape } ->
       handle_for_expr value_env type_env (var, escape, from, to', body) pos
   | Syntax.BreakExpr ->
-      { translated_expr =
-          { translated_expr = Translate.dummy_expr; pos; debug = None }
-      ; ty = Types.Unit
-      }
+      Option.fold
+        ~none:
+          (TigerError.semant_error
+             ( "No surrouding break label for break statement. Break appears \
+                to be outside of a while expression."
+             , pos ) )
+        ~some:(fun break_label ->
+          { translated_expr =
+              { translated_expr = Translate.break' break_label
+              ; pos
+              ; debug = None
+              }
+          ; ty = Types.Unit
+          } )
+        break_label
   | Syntax.LetExpr { decls; body } ->
       handle_let_expr value_env type_env (decls, body) pos
   | Syntax.ArrayExpr { typ; size; init_value } ->
