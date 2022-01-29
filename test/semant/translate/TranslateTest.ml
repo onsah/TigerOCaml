@@ -218,6 +218,12 @@ let test_array _ =
         assert_bool "didn't match pattern" false )
 
 
+let test_break _ =
+  let label = Temp.newlabel () in
+  let result = Translate.break' label in
+  assert_equal result (NoValue (IRTree.Label label))
+
+
 let suite =
   "Translate"
   >::: [ "extract_cond should return jump false label for const 0"
@@ -231,6 +237,7 @@ let suite =
        ; "test_record" >:: test_record
        ; "test_array" >:: test_array
        ; "test_while" >:: test_while
+       ; "test_break" >:: test_break
        ]
 
 

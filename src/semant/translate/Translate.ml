@@ -465,3 +465,6 @@ let while' ~cond ~body =
        , IRTree.const_unit
          (* We need to supply some value since while is expression. It will be discarded properly. *)
        ) )
+
+
+let break' label = NoValue (IRTree.Label label)
