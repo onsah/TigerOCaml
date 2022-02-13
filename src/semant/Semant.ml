@@ -155,15 +155,17 @@ let rec trans_expr
         ; ty = Types.Unit
         }
     | [ expr ] ->
-        trans_expr (value_env, type_env, expr, None) current_level
+        trans_expr (value_env, type_env, expr, break_label) current_level
     | expr :: exprs ->
-        let _ = trans_expr (value_env, type_env, expr, None) current_level in
+        let _ =
+          trans_expr (value_env, type_env, expr, break_label) current_level
+        in
         handle_seq_expr value_env type_env exprs pos
   and handle_assign_expr value_env type_env var expr pos =
     let { translated_expr = _; ty = var_ty } =
-      trans_var value_env type_env current_level var
+      trans_var value_env type_env break_label current_level var
     and { translated_expr = _; ty = expr_ty } =
-      trans_expr (value_env, type_env, expr, None) current_level
+      trans_expr (value_env, type_env, expr, break_label) current_level
     in
     match assignment_type_checks var_ty expr_ty with
     | true ->
@@ -180,26 +182,26 @@ let rec trans_expr
               (Types.show_ty expr_ty)
           , pos )
   and handle_lvalue_expr value_env type_env lvalue =
-    trans_var value_env type_env current_level lvalue
+    trans_var value_env type_env break_label current_level lvalue
   and handle_if_expr value_env type_env (cond, then_arm, else_arm_opt) if_pos =
     let { translated_expr = { pos; translated_expr = cond_expr; _ }
         ; ty = cond_ty
         } =
-      trans_expr (value_env, type_env, cond, None) current_level
+      trans_expr (value_env, type_env, cond, break_label) current_level
     in
     let _ = expecting_int cond_ty pos in
     let { ty = then_ty
         ; translated_expr = { translated_expr = then_expr; _ }
         ; _
         } =
-      trans_expr (value_env, type_env, then_arm, None) current_level
+      trans_expr (value_env, type_env, then_arm, break_label) current_level
     in
     match else_arm_opt with
     | Some else_arm ->
         let { translated_expr = { pos; translated_expr = else_expr; _ }
             ; ty = else_ty
             } =
-          trans_expr (value_env, type_env, else_arm, None) current_level
+          trans_expr (value_env, type_env, else_arm, break_label) current_level
         in
         (* Both can be nil, thus we just check for both side *)
         if is_types_compatible then_ty else_ty
@@ -235,7 +237,7 @@ let rec trans_expr
     let { translated_expr = { pos = cond_pos; translated_expr = cond_expr; _ }
         ; ty = cond_ty
         } =
-      trans_expr (value_env, type_env, cond, None) current_level
+      trans_expr (value_env, type_env, cond, break_label) current_level
     in
     let _ = expecting_int cond_ty cond_pos in
     let break_label = Temp.newlabel () in
@@ -263,9 +265,9 @@ let rec trans_expr
           , body_pos )
   and handle_for_expr value_env type_env (var, escape, from, to', body) pos =
     let { ty = from_ty; translated_expr = { pos = from_pos; _ } } =
-      trans_expr (value_env, type_env, from, None) current_level
+      trans_expr (value_env, type_env, from, break_label) current_level
     and { ty = to_ty; translated_expr = { pos = to_pos; _ } } =
-      trans_expr (value_env, type_env, to', None) current_level
+      trans_expr (value_env, type_env, to', break_label) current_level
     in
     let _ = expecting_int from_ty from_pos
     and _ = expecting_int to_ty to_pos in
@@ -274,7 +276,7 @@ let rec trans_expr
       Symbol.enter (value_env, var, VarEntry { access; ty = Types.Int })
     in
     let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-      trans_expr (value_env, type_env, body, None) current_level
+      trans_expr (value_env, type_env, body, break_label) current_level
     in
     match body_ty with
     | Types.Unit ->
@@ -291,9 +293,9 @@ let rec trans_expr
           , body_pos )
   and handle_let_expr value_env type_env (decls, body) _pos =
     let value_env, type_env =
-      trans_decls value_env type_env current_level decls
+      trans_decls value_env type_env break_label current_level decls
     in
-    trans_expr (value_env, type_env, body, None) current_level
+    trans_expr (value_env, type_env, body, break_label) current_level
   and handle_array_expr
       value_env type_env (typ_symbol, size_expr, init_expr) pos =
     let ty = actual_ty (check_look_ty (type_env, typ_symbol, pos)) in
@@ -301,9 +303,9 @@ let rec trans_expr
     | Array (value_ty, _) ->
         let value_ty = actual_ty value_ty in
         let { ty = size_ty; translated_expr = { pos = size_pos; _ } } =
-          trans_expr (value_env, type_env, size_expr, None) current_level
+          trans_expr (value_env, type_env, size_expr, break_label) current_level
         and { ty = init_ty; translated_expr = { pos = init_pos; _ } } =
-          trans_expr (value_env, type_env, init_expr, None) current_level
+          trans_expr (value_env, type_env, init_expr, break_label) current_level
         in
         let _ = expecting_int size_ty size_pos
         and _ = expecting_ty value_ty init_ty init_pos in
@@ -321,7 +323,8 @@ let rec trans_expr
         let args_checked =
           List.map
             (fun arg ->
-              trans_expr (value_env, type_env, arg, None) current_level )
+              trans_expr (value_env, type_env, arg, break_label) current_level
+              )
             args
         in
         type_check_args argTypes (List.map (fun arg -> arg.ty) args_checked) pos ;
@@ -344,12 +347,12 @@ let rec trans_expr
         ; translated_expr = { translated_expr = left_expr; pos = left_pos; _ }
         ; _
         } =
-      trans_expr (value_env, type_env, left, None) current_level
+      trans_expr (value_env, type_env, left, break_label) current_level
     and { ty = right_ty
         ; translated_expr = { translated_expr = right_expr; pos = right_pos; _ }
         ; _
         } =
-      trans_expr (value_env, type_env, right, None) current_level
+      trans_expr (value_env, type_env, right, break_label) current_level
     in
     match op with
     | BinaryEq | BinaryLtgt | BinaryLt | BinaryGt | BinaryLteq | BinaryGteq ->
@@ -394,8 +397,9 @@ let rec trans_expr
         let checked_fields =
           List.map
             (fun field_expr ->
-              trans_expr (value_env, type_env, field_expr, None) current_level
-              )
+              trans_expr
+                (value_env, type_env, field_expr, break_label)
+                current_level )
             field_exprs
         in
         let field_names_with_types =
@@ -411,7 +415,9 @@ let rec trans_expr
         let exprs =
           List.map
             (fun f ->
-              (trans_expr (value_env, type_env, f.expr, None) current_level)
+              (trans_expr
+                 (value_env, type_env, f.expr, break_label)
+                 current_level )
                 .translated_expr
                 .translated_expr )
             fields
@@ -466,28 +472,27 @@ let rec trans_expr
   | Syntax.ForExpr { var; from; to'; body; escape } ->
       handle_for_expr value_env type_env (var, escape, from, to', body) pos
   | Syntax.BreakExpr ->
-      Option.fold
-        ~none:
-          (TigerError.semant_error
-             ( "No surrouding break label for break statement. Break appears \
-                to be outside of a while expression."
-             , pos ) )
-        ~some:(fun break_label ->
-          { translated_expr =
-              { translated_expr = Translate.break' break_label
-              ; pos
-              ; debug = None
-              }
-          ; ty = Types.Unit
-          } )
-        break_label
+    ( match break_label with
+    | Some break_label ->
+        { translated_expr =
+            { translated_expr = Translate.break' break_label
+            ; pos
+            ; debug = None
+            }
+        ; ty = Types.Unit
+        }
+    | None ->
+        TigerError.semant_error
+          ( "No surrouding break label for break statement. Break appears to \
+             be outside of a while expression."
+          , pos ) )
   | Syntax.LetExpr { decls; body } ->
       handle_let_expr value_env type_env (decls, body) pos
   | Syntax.ArrayExpr { typ; size; init_value } ->
       handle_array_expr value_env type_env (typ, size, init_value) pos
 
 
-and trans_var value_env type_env current_level = function
+and trans_var value_env type_env break_label current_level = function
   | SimpleVar { symbol; pos } ->
       let value_entry = check_look_env (value_env, symbol, pos) in
       (* It must be a var *)
@@ -504,7 +509,7 @@ and trans_var value_env type_env current_level = function
           TigerError.semant_error ("Functions can't be an lvalue", pos) )
   | FieldVar { var; symbol; pos } ->
       let { translated_expr = _; ty = var_ty } =
-        trans_var value_env type_env current_level var
+        trans_var value_env type_env break_label current_level var
       in
       let var_ty = actual_ty var_ty in
       ( match var_ty with
@@ -532,13 +537,13 @@ and trans_var value_env type_env current_level = function
             , pos ) )
   | SubscriptVar { var; expr; pos } ->
       let { translated_expr = _; ty = var_ty } =
-        trans_var value_env type_env current_level var
+        trans_var value_env type_env break_label current_level var
       in
       let var_ty = actual_ty var_ty in
       ( match var_ty with
       | Array (ty, _) ->
           let trans_expr_result =
-            trans_expr (value_env, type_env, expr, None) current_level
+            trans_expr (value_env, type_env, expr, break_label) current_level
           in
           let _ =
             expecting_int
@@ -558,24 +563,24 @@ and trans_var value_env type_env current_level = function
             , pos ) )
 
 
-and trans_decls value_env type_env current_level = function
+and trans_decls value_env type_env break_label current_level = function
   | decl :: decls ->
       let value_env, type_env =
-        trans_decl value_env type_env current_level decl
+        trans_decl value_env type_env break_label current_level decl
       in
-      trans_decls value_env type_env current_level decls
+      trans_decls value_env type_env break_label current_level decls
   | [] ->
       (value_env, type_env)
 
 
-and trans_decl value_env type_env current_level = function
+and trans_decl value_env type_env break_label current_level = function
   | VarDecl { name; typ; value; pos; escape } ->
       Printf.printf
         "Declaring %s, escape: %B\n"
         (Symbol.show_symbol name)
         escape.contents ;
       let { ty = value_ty; _ } =
-        trans_expr (value_env, type_env, value, None) current_level
+        trans_expr (value_env, type_env, value, break_label) current_level
       in
       ( match typ with
       | None ->
@@ -764,7 +769,7 @@ and trans_decl value_env type_env current_level = function
                 params_with_tys )
         in
         let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-          trans_expr (value_env', type_env, body, None) functionLevel
+          trans_expr (value_env', type_env, body, break_label) functionLevel
         in
         let _ = expecting_ty return_type body_ty body_pos in
         ()

@@ -31,10 +31,11 @@ module TigerError = struct
           ^ string_of_int pos )
 
 
-  let semant_error (msg, pos) =
+  let make_semant_error (msg, pos) =
     let { line; col } = pos in
-    raise
-      (SemantError
-         (msg ^ ": at line " ^ string_of_int line ^ ", col " ^ string_of_int col)
-      )
+    SemantError
+      (msg ^ ": at line " ^ string_of_int line ^ ", col " ^ string_of_int col)
+
+
+  let semant_error (msg, pos) = raise (make_semant_error (msg, pos))
 end

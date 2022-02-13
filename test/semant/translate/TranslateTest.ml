@@ -228,7 +228,7 @@ let test_array _ =
 let test_break _ =
   let label = Temp.newlabel () in
   let result = Translate.break' label in
-  assert_equal result (NoValue (IRTree.Label label))
+  assert_equal result (NoValue (IRTree.jump_single_label label))
 
 
 let suite =

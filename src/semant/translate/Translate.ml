@@ -466,4 +466,4 @@ let while' ~cond ~body ~break_label =
        ) )
 
 
-let break' label = NoValue (IRTree.Label label)
+let break' label = NoValue (IRTree.jump_single_label label)
