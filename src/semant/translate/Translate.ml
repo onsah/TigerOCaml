@@ -466,4 +466,56 @@ let while' ~cond ~body ~break_label =
        ) )
 
 
+(** There are 3 possible cases here:
+1- from < to
+2- from = to
+3- from > to
+The emitted code handles all three cases appropriately
+*)
+let for' ~var ~from ~to' ~body ~break_label =
+  let loop_var_access_expr = extract_expr var
+  and loop_start_label = Temp.newlabel ()
+  and loop_cont_label = Temp.newlabel ()
+  and to_access_expr = IRTree.Temp (Temp.newtemp ()) in
+  Expr
+    (IRTree.ESeq
+       ( IRTree.Seq
+           [ (* Initialize loop var *)
+             IRTree.Move
+               { location = loop_var_access_expr; value = extract_expr from }
+           ; (* Initialize limit var *)
+             IRTree.Move { location = to_access_expr; value = extract_expr to' }
+             (* Initial test to avoid looping if `from` is bigger than `to` initially *)
+           ; IRTree.CondJump
+               { true_label = break_label
+               ; false_label = loop_start_label
+               ; left_expr = loop_var_access_expr
+               ; right_expr = to_access_expr
+               ; cond = Gt
+               }
+           ; IRTree.Label loop_start_label
+           ; IRTree.Expr (extract_expr body)
+           ; IRTree.CondJump
+               { true_label = loop_cont_label
+               ; false_label = break_label
+               ; left_expr = loop_var_access_expr
+               ; right_expr = to_access_expr
+               ; cond = Lt
+               }
+           ; IRTree.Label loop_cont_label
+           ; IRTree.Move
+               { location = loop_var_access_expr
+               ; value =
+                   IRTree.Binop
+                     { op = IRTree.Plus
+                     ; left = loop_var_access_expr
+                     ; right = IRTree.Const 1
+                     }
+               }
+           ; IRTree.jump_single_label loop_start_label
+           ; IRTree.Label break_label
+           ]
+       , IRTree.const_unit ) )
+
+
 let break' label = NoValue (IRTree.jump_single_label label)

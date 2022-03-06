@@ -231,6 +231,82 @@ let test_break _ =
   assert_equal result (NoValue (IRTree.jump_single_label label))
 
 
+let test_for _ =
+  let from, to' = (0, 5)
+  and loop_var_location_expr = IRTree.Temp (Temp.newtemp ())
+  and body_expr = Translate.int 0 in
+  let result =
+    Translate.for'
+      ~var:(Translate.Expr loop_var_location_expr)
+      ~from:(Translate.int from)
+      ~to':(Translate.int to')
+      ~body:body_expr
+      ~break_label:(Temp.newlabel ())
+  in
+  ignore
+    ( match result with
+    | Translate.Expr
+        (IRTree.ESeq
+          ( IRTree.Seq
+              [ IRTree.Move
+                  { location = loop_var_location_expr'
+                  ; value = loop_var_init_value
+                  }
+              ; IRTree.Move
+                  { location = limit_location_expr; value = limit_value }
+              ; IRTree.CondJump
+                  { true_label = initial_check_true_label
+                  ; false_label = initial_check_false_label
+                  ; left_expr = initial_check_left_expr
+                  ; right_expr = initial_check_right_expr
+                  ; cond = initial_test_cond
+                  }
+              ; IRTree.Label loop_start_label
+              ; IRTree.Expr body_expr'
+              ; IRTree.CondJump
+                  { true_label = next_iter_check_true_label
+                  ; false_label = next_iter_check_false_label
+                  ; left_expr = next_iter_check_left_expr
+                  ; right_expr = next_iter_check_right_expr
+                  ; cond = next_iter_test_cond
+                  }
+              ; IRTree.Label loop_cont_label
+              ; IRTree.Move
+                  { location = loop_incr_location; value = loop_incr_value }
+              ; loop_cont_jump
+              ; IRTree.Label break_label
+              ]
+          , for_result_expr ) ) ->
+        assert_equal loop_var_location_expr' loop_var_location_expr ;
+        assert_equal
+          loop_var_init_value
+          (Translate.extract_expr (Translate.int from)) ;
+        assert_equal limit_value (Translate.extract_expr (Translate.int to')) ;
+        assert_equal initial_check_true_label break_label ;
+        assert_equal initial_check_false_label loop_start_label ;
+        assert_equal initial_check_left_expr loop_var_location_expr ;
+        assert_equal initial_check_right_expr limit_location_expr ;
+        assert_equal initial_test_cond IRTree.Gt ;
+        assert_equal body_expr' (Translate.extract_expr body_expr) ;
+        assert_equal next_iter_check_true_label loop_cont_label ;
+        assert_equal next_iter_check_false_label break_label ;
+        assert_equal next_iter_check_left_expr loop_var_location_expr ;
+        assert_equal next_iter_check_right_expr limit_location_expr ;
+        assert_equal next_iter_test_cond IRTree.Lt ;
+        assert_equal loop_incr_location loop_var_location_expr ;
+        assert_equal
+          loop_incr_value
+          (IRTree.Binop
+             { op = IRTree.Plus
+             ; left = loop_var_location_expr
+             ; right = IRTree.Const 1
+             } ) ;
+        assert_equal loop_cont_jump (IRTree.jump_single_label loop_start_label) ;
+        assert_equal for_result_expr IRTree.const_unit
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
 let suite =
   "Translate"
   >::: [ "extract_cond should return jump false label for const 0"
@@ -245,6 +321,7 @@ let suite =
        ; "test_array" >:: test_array
        ; "test_while" >:: test_while
        ; "test_break" >:: test_break
+       ; "test_for" >:: test_for
        ]
 
 

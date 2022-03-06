@@ -264,24 +264,37 @@ let rec trans_expr
               (Types.show_ty body_ty)
           , body_pos )
   and handle_for_expr value_env type_env (var, escape, from, to', body) pos =
-    let { ty = from_ty; translated_expr = { pos = from_pos; _ } } =
+    let { ty = from_ty
+        ; translated_expr = { translated_expr = from; pos = from_pos; _ }
+        } =
       trans_expr (value_env, type_env, from, break_label) current_level
-    and { ty = to_ty; translated_expr = { pos = to_pos; _ } } =
+    and { ty = to_ty
+        ; translated_expr = { translated_expr = to'; pos = to_pos; _ }
+        } =
       trans_expr (value_env, type_env, to', break_label) current_level
     in
     let _ = expecting_int from_ty from_pos
     and _ = expecting_int to_ty to_pos in
+    let var_access = Translate.alloc_local current_level !escape in
     let value_env =
-      let access = Translate.alloc_local current_level !escape in
-      Symbol.enter (value_env, var, VarEntry { access; ty = Types.Int })
+      Symbol.enter
+        (value_env, var, VarEntry { access = var_access; ty = Types.Int })
     in
-    let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
-      trans_expr (value_env, type_env, body, break_label) current_level
+    let break_label = Temp.newlabel () in
+    let { ty = body_ty
+        ; translated_expr = { translated_expr = body; pos = body_pos; _ }
+        } =
+      trans_expr (value_env, type_env, body, Some break_label) current_level
     in
     match body_ty with
     | Types.Unit ->
+        let var_expr = Translate.simple_var (var_access, current_level) in
         { translated_expr =
-            { translated_expr = Translate.dummy_expr; pos; debug = None }
+            { translated_expr =
+                Translate.for' ~var:var_expr ~from ~to' ~body ~break_label
+            ; debug = None
+            ; pos
+            }
         ; ty = Types.Unit
         }
     | body_ty ->
