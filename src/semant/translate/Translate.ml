@@ -519,3 +519,25 @@ let for' ~var ~from ~to' ~body ~break_label =
 
 
 let break' label = NoValue (IRTree.jump_single_label label)
+
+let function_call ~label ~args ~callee_level ~caller_level =
+  let static_link =
+    if callee_level.parent = Some caller_level
+    then IRTree.Temp Frame.fp
+    else if callee_level = caller_level
+    then
+      let static_link_access = static_link callee_level.frame in
+      Frame.expr static_link_access ~fp:(IRTree.Temp Frame.fp)
+    else
+      failwith
+        (Printf.sprintf
+           "Illegal state: the caller is not parent of the callee nor it is a \
+            recursive call [callee=%s] [caller=%s]"
+           (show_level callee_level)
+           (show_level caller_level) )
+  in
+  Expr
+    (IRTree.Call
+       { func = IRTree.Name label
+       ; args = static_link :: List.map extract_expr args
+       } )

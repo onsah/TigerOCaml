@@ -332,19 +332,33 @@ let rec trans_expr
   and handle_call_expr value_env type_env (func, args) pos =
     let entry = check_look_env (value_env, func, pos) in
     match entry with
-    | FunEntry { argTypes; return_type; level; label } ->
-        let args_checked =
+    | FunEntry
+        { argTypes; return_type; level = callee_level; label = function_label }
+      ->
+        let translated_args =
           List.map
             (fun arg ->
               trans_expr (value_env, type_env, arg, break_label) current_level
               )
             args
         in
-        type_check_args argTypes (List.map (fun arg -> arg.ty) args_checked) pos ;
+        type_check_args
+          argTypes
+          (List.map (fun arg -> arg.ty) translated_args)
+          pos ;
         { translated_expr =
-            { translated_expr = Translate.dummy_expr
+            { translated_expr =
+                Translate.function_call
+                  ~label:function_label
+                  ~args:
+                    (List.map
+                       (fun typed_expr ->
+                         typed_expr.translated_expr.translated_expr )
+                       translated_args )
+                  ~callee_level
+                  ~caller_level:current_level
             ; pos
-            ; debug = Some (FunDebug (level, label))
+            ; debug = Some (FunDebug (callee_level, function_label))
             }
         ; ty = return_type
         }
@@ -781,8 +795,17 @@ and trans_decl value_env type_env break_label current_level = function
                       } ) )
                 params_with_tys )
         in
-        let { ty = body_ty; translated_expr = { pos = body_pos; _ } } =
+        let { ty = body_ty
+            ; translated_expr = { pos = body_pos; translated_expr; _ }
+            } =
           trans_expr (value_env', type_env, body, break_label) functionLevel
+        in
+        (* For debugging *)
+        let _ =
+          ignore
+            (Printf.printf
+               "Function body translated: %s\n"
+               (Translate.show_expr translated_expr) )
         in
         let _ = expecting_ty return_type body_ty body_pos in
         ()

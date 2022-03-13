@@ -71,3 +71,11 @@ val for' :
 val break' : Temp.label -> expr
 
 val comparison : typed_expr * Syntax.binary_op * typed_expr -> expr
+
+(* Assumes a called function can only be called by it's statically enclosing function. *)
+val function_call :
+     label:Temp.label
+  -> args:expr list
+  -> callee_level:level
+  -> caller_level:level
+  -> expr
