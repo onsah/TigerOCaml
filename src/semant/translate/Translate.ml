@@ -566,6 +566,19 @@ let func_decl ~body =
        { location = IRTree.Temp MyFrame.rv; value = extract_expr body } )
 
 
-(* let record_func_declaration = () *)
+let record_func_declaration ~level ~body =
+  let frame = level.frame
+  and body = func_decl ~body in
+  let processed_body =
+    MyFrame.proc_entry_exit_1 ~frame ~body:(extract_no_result body)
+  in
 
-let fragments = my_frags.contents
+  (* For debugging *)
+  ignore
+    (Printf.printf
+       "Function body translated: %s\n"
+       (IRTree.show_stmt processed_body) ) ;
+  my_frags := MyFrame.Proc { frame; body = processed_body } :: my_frags.contents
+
+
+let fragments () = my_frags.contents

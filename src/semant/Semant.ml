@@ -819,13 +819,11 @@ and
           let body_expr =
             trans_expr (value_env', type_env, body, break_label) functionLevel
           in
-          (* For debugging *)
+          (* Record function assembly *)
           ignore
-            (printf
-               "Function body translated: %s\n"
-               (Translate.show_expr
-                  (Translate.func_decl
-                     ~body:body_expr.translated_expr.translated_expr ) ) ) ;
+            (Translate.record_func_declaration
+               ~level:functionLevel
+               ~body:body_expr.translated_expr.translated_expr ) ;
           body_expr
         in
         let _ = expecting_ty return_type body_ty body_pos in

@@ -360,6 +360,28 @@ let test_function_call_recursive _ =
         assert_bool "didn't match pattern" false )
 
 
+let test_record_func_declaration _ =
+  let level =
+    Translate.new_level
+      ~parent:Translate.outermost
+      ~name:(Symbol.symbol "foo")
+      ~formals_escape:[]
+  and body = Translate.int 5 in
+  ignore (Translate.record_func_declaration ~level ~body) ;
+  ignore
+    ( match List.hd (Translate.fragments ()) with
+    | Translate.MyFrame.Proc { body = frame_body; frame } ->
+        assert_equal (Translate.name level) (Translate.MyFrame.name frame) ;
+        ( match frame_body with
+        | IRTree.Move { location = move_location; value = move_value } ->
+            assert_equal move_location (IRTree.Temp Translate.MyFrame.rv) ;
+            assert_equal (Translate.Expr move_value) body
+        | _ ->
+            assert_bool "didn't match pattern" false )
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
 let suite =
   "Translate"
   >::: [ "extract_cond should return jump false label for const 0"
@@ -377,6 +399,7 @@ let suite =
        ; "test_for" >:: test_for
        ; "test_function_call_regular" >:: test_function_call_regular
        ; "test_function_call_recursive" >:: test_function_call_recursive
+       ; "test_record_func_declaration" >:: test_record_func_declaration
        ]
 
 

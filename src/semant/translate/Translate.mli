@@ -86,6 +86,7 @@ val init_variable : access_expr:expr -> expr:expr -> expr
 
 val let' : init_exprs:expr list -> body:expr -> expr
 
-val func_decl : body:expr -> expr
+(*procEntryExit in the book*)
+val record_func_declaration : level:level -> body:expr -> unit
 
-val fragments : MyFrame.frag list
+val fragments : unit -> MyFrame.frag list
