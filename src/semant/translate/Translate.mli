@@ -1,5 +1,7 @@
 open Ir
 
+module MyFrame : Frame.Frame
+
 type level [@@deriving show]
 
 type access [@@deriving show]
@@ -85,3 +87,5 @@ val init_variable : access_expr:expr -> expr:expr -> expr
 val let' : init_exprs:expr list -> body:expr -> expr
 
 val func_decl : body:expr -> expr
+
+val fragments : MyFrame.frag list

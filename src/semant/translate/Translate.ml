@@ -1,25 +1,27 @@
-module Frame : Frame.Frame = Frame.MipsFrame
+module MyFrame : Frame.Frame = Frame.MipsFrame
 
 module IRTree = Ir.IRTree
 
-type access = level * Frame.access [@@deriving show]
+type access = level * MyFrame.access [@@deriving show]
 
 and level =
   { parent : level option
-  ; frame : Frame.frame
+  ; frame : MyFrame.frame
   }
 [@@deriving show]
 
+let my_frags : MyFrame.frag list ref = ref []
+
 let outermost =
   { parent = None
-  ; frame = Frame.new_frame ~name:(Temp.newlabel ()) ~formals:[]
+  ; frame = MyFrame.new_frame ~name:(Temp.newlabel ()) ~formals:[]
   }
 
 
 let new_level ~parent ~name ~formals_escape =
   { parent = Some parent
   ; frame =
-      Frame.new_frame
+      MyFrame.new_frame
         ~name
         ~formals:(true (* pass static link as an argument *) :: formals_escape)
   }
@@ -28,12 +30,12 @@ let new_level ~parent ~name ~formals_escape =
 let formals level =
   List.map
     (fun frame_access -> (level, frame_access))
-    (List.tl (Frame.formals level.frame))
+    (List.tl (MyFrame.formals level.frame))
 
 
-let name level = Frame.name level.frame
+let name level = MyFrame.name level.frame
 
-let alloc_local level escape = (level, Frame.alloc_local level.frame escape)
+let alloc_local level escape = (level, MyFrame.alloc_local level.frame escape)
 
 type cond_args =
   { true_label : IRTree.label
@@ -133,15 +135,17 @@ let extract_cond = function
 
 let dummy_expr = NoValue (IRTree.Expr (IRTree.Const 0))
 
-let static_link frame = List.hd (Frame.formals frame)
+let static_link frame = List.hd (MyFrame.formals frame)
 
 (* Can be used for prımitive values as well as record and array values *)
 let simple_var ((access_level, frame_access), level) =
   let rec simple_var_impl (curr_level, prev_expr) =
     if curr_level == access_level
-    then Expr (Frame.expr frame_access ~fp:prev_expr)
+    then Expr (MyFrame.expr frame_access ~fp:prev_expr)
     else
-      let next_expr = Frame.expr (static_link curr_level.frame) ~fp:prev_expr in
+      let next_expr =
+        MyFrame.expr (static_link curr_level.frame) ~fp:prev_expr
+      in
       match curr_level.parent with
       | None ->
           raise (Failure "Expected to have parent")
@@ -149,7 +153,7 @@ let simple_var ((access_level, frame_access), level) =
           simple_var_impl (parent, next_expr)
   in
 
-  simple_var_impl (level, IRTree.Temp Frame.fp)
+  simple_var_impl (level, IRTree.Temp MyFrame.fp)
 
 
 (* construct ir exor and continue *)
@@ -166,7 +170,7 @@ let subscript (array_access, level, offset_expr) =
           ; right =
               Binop
                 { op = Mul
-                ; left = Const Frame.word_size
+                ; left = Const MyFrame.word_size
                 ; right = extract_expr offset_expr
                 }
           } ) )
@@ -326,38 +330,38 @@ let comparison
         ( match relop with
         | IRTree.Eq ->
             make_cond
-              (Frame.external_call
-                 ~func:Frame.StrEq
+              (MyFrame.external_call
+                 ~func:MyFrame.StrEq
                  ~args:[ left_expr; right_expr ] )
               IRTree.const_true
         | IRTree.Ne ->
             make_cond
-              (Frame.external_call
-                 ~func:Frame.StrEq
+              (MyFrame.external_call
+                 ~func:MyFrame.StrEq
                  ~args:[ left_expr; right_expr ] )
               IRTree.const_false
         | IRTree.Lt ->
             make_cond
-              (Frame.external_call
-                 ~func:Frame.StrLt
+              (MyFrame.external_call
+                 ~func:MyFrame.StrLt
                  ~args:[ left_expr; right_expr ] )
               IRTree.const_true
         | IRTree.Gt ->
             make_cond
-              (Frame.external_call
-                 ~func:Frame.StrLt
+              (MyFrame.external_call
+                 ~func:MyFrame.StrLt
                  ~args:[ left_expr; right_expr ] )
               IRTree.const_false
         | IRTree.Le ->
             make_cond
-              (Frame.external_call
-                 ~func:Frame.StrLte
+              (MyFrame.external_call
+                 ~func:MyFrame.StrLte
                  ~args:[ left_expr; right_expr ] )
               IRTree.const_true
         | IRTree.Ge ->
             make_cond
-              (Frame.external_call
-                 ~func:Frame.StrLte
+              (MyFrame.external_call
+                 ~func:MyFrame.StrLte
                  ~args:[ left_expr; right_expr ] )
               IRTree.const_false
         | _ ->
@@ -389,7 +393,7 @@ let comparison
 
 let string str =
   let symbol = Symbol.symbol str in
-  Frame.string ~label:symbol ~literal:str ;
+  MyFrame.string ~label:symbol ~literal:str ;
   Expr (IRTree.Name symbol)
 
 
@@ -400,10 +404,10 @@ let record ~fields =
        ( IRTree.Seq
            (IRTree.Move
               { value =
-                  Frame.external_call
-                    ~func:Frame.Malloc
+                  MyFrame.external_call
+                    ~func:MyFrame.Malloc
                     ~args:
-                      [ IRTree.Const (List.length fields * Frame.word_size) ]
+                      [ IRTree.Const (List.length fields * MyFrame.word_size) ]
               ; location = IRTree.Temp result_temp
               }
             ::
@@ -415,7 +419,7 @@ let record ~fields =
                       IRTree.Binop
                         { op = IRTree.Plus
                         ; left = IRTree.Temp result_temp
-                        ; right = IRTree.Const (i * Frame.word_size)
+                        ; right = IRTree.Const (i * MyFrame.word_size)
                         }
                   } )
               fields )
@@ -429,14 +433,14 @@ let array ~size ~init_expr =
        ( IRTree.Seq
            [ Move
                { value =
-                   Frame.external_call
-                     ~func:Frame.Malloc
-                     ~args:[ IRTree.Const (size * Frame.word_size) ]
+                   MyFrame.external_call
+                     ~func:MyFrame.Malloc
+                     ~args:[ IRTree.Const (size * MyFrame.word_size) ]
                ; location = IRTree.Temp array_temp
                }
            ; IRTree.Expr
-               (Frame.external_call
-                  ~func:Frame.InitArray
+               (MyFrame.external_call
+                  ~func:MyFrame.InitArray
                   ~args:[ IRTree.Const size; extract_expr init_expr ] )
            ]
        , IRTree.Temp array_temp ) )
@@ -523,11 +527,11 @@ let break' label = NoValue (IRTree.jump_single_label label)
 let function_call ~label ~args ~callee_level ~caller_level =
   let static_link =
     if callee_level.parent = Some caller_level
-    then IRTree.Temp Frame.fp
+    then IRTree.Temp MyFrame.fp
     else if callee_level = caller_level
     then
       let static_link_access = static_link callee_level.frame in
-      Frame.expr static_link_access ~fp:(IRTree.Temp Frame.fp)
+      MyFrame.expr static_link_access ~fp:(IRTree.Temp MyFrame.fp)
     else
       failwith
         (Printf.sprintf
@@ -558,4 +562,10 @@ let let' ~init_exprs ~body =
 
 let func_decl ~body =
   NoValue
-    (IRTree.Move { location = IRTree.Temp Frame.rv; value = extract_expr body })
+    (IRTree.Move
+       { location = IRTree.Temp MyFrame.rv; value = extract_expr body } )
+
+
+(* let record_func_declaration = () *)
+
+let fragments = my_frags.contents

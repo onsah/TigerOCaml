@@ -5,6 +5,14 @@ module type Frame = sig
 
   type access [@@deriving show]
 
+  type frag =
+    | Proc of
+        { body : IRTree.stmt
+        ; frame : frame
+        }
+    | String of Temp.label * string
+  [@@deriving show]
+
   val new_frame : name:Temp.label -> formals:bool list -> frame
 
   val name : frame -> Temp.label
@@ -50,6 +58,14 @@ module MipsFrame : Frame = struct
   and access =
     | InStack of int
     | InReg of Temp.temp
+  [@@deriving show]
+
+  and frag =
+    | Proc of
+        { body : IRTree.stmt
+        ; frame : frame
+        }
+    | String of Temp.label * string
   [@@deriving show]
 
   let word_size = 4
