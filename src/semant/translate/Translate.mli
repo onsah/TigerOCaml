@@ -83,3 +83,5 @@ val function_call :
 val init_variable : access_expr:expr -> expr:expr -> expr
 
 val let' : init_exprs:expr list -> body:expr -> expr
+
+val func_decl : body:expr -> expr

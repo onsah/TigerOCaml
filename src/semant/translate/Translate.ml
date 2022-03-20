@@ -554,3 +554,8 @@ let let' ~init_exprs ~body =
     (IRTree.ESeq
        ( IRTree.Seq (List.map (fun expr -> extract_no_result expr) init_exprs)
        , extract_expr body ) )
+
+
+let func_decl ~body =
+  NoValue
+    (IRTree.Move { location = IRTree.Temp Frame.rv; value = extract_expr body })
