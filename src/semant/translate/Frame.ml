@@ -45,6 +45,13 @@ module type Frame = sig
 
   (* Generates assembly fragment for a string *)
   val string : label:Symbol.symbol -> literal:string -> unit
+
+  (*
+  - TODO: save escaping arguments of the function
+  - TODO: add store instructions for the escaping registers (at least return address register)
+  - TODO: add load instructions for the escaping registers (at least return address register)
+  *)
+  val proc_entry_exit_1 : frame:frame -> body:IRTree.stmt -> IRTree.stmt
 end
 
 module MipsFrame : Frame = struct
@@ -156,4 +163,6 @@ module MipsFrame : Frame = struct
 
 
   let string ~label:_ ~literal:_ = failwith "TODO: implement"
+
+  let proc_entry_exit_1 ~frame:_ ~body = body
 end
