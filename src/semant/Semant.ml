@@ -590,7 +590,12 @@ and trans_var value_env type_env break_label current_level = function
             , pos ) )
 
 
-and trans_decls value_env type_env break_label current_level = function
+and trans_decls
+    (value_env : envEntry Symbol.table)
+    (type_env : ty Symbol.table)
+    (break_label : Symbol.symbol option)
+    (current_level : Translate.level) :
+    decl list -> envEntry Symbol.table * ty Symbol.table = function
   | decl :: decls ->
       let value_env, type_env =
         trans_decl value_env type_env break_label current_level decl
@@ -600,7 +605,12 @@ and trans_decls value_env type_env break_label current_level = function
       (value_env, type_env)
 
 
-and trans_decl value_env type_env break_label current_level = function
+and trans_decl
+    (value_env : envEntry Symbol.table)
+    (type_env : ty Symbol.table)
+    (break_label : Symbol.symbol option)
+    (current_level : Translate.level) :
+    decl -> envEntry Symbol.table * ty Symbol.table = function
   | VarDecl { name; typ; value; pos; escape } ->
       Printf.printf
         "Declaring %s, escape: %B\n"
