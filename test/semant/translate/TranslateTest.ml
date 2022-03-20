@@ -307,6 +307,59 @@ let test_for _ =
         assert_bool "didn't match pattern" false )
 
 
+let test_function_call_regular _ =
+  let label = Temp.newlabel ()
+  and args_passed = []
+  and caller_level = Translate.outermost in
+  let callee_level =
+    Translate.new_level
+      ~parent:caller_level
+      ~name:label
+      ~formals_escape:[ true ]
+  in
+  let result =
+    Translate.function_call ~label ~args:args_passed ~callee_level ~caller_level
+  in
+  ignore
+    ( match result with
+    | Translate.Expr (IRTree.Call { func; args }) ->
+        assert_equal func (IRTree.Name label) ;
+        assert_equal args (IRTree.Temp Frame.MipsFrame.fp :: args_passed)
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
+let test_function_call_recursive _ =
+  let label = Temp.newlabel ()
+  and args_passed = [] in
+  let caller_level =
+    Translate.new_level
+      ~parent:Translate.outermost
+      ~name:label
+      ~formals_escape:[ true ]
+  in
+  let callee_level = caller_level in
+  let result =
+    Translate.function_call ~label ~args:args_passed ~callee_level ~caller_level
+  in
+  ignore
+    ( match result with
+    | Translate.Expr (IRTree.Call { func; args = static_link_formal :: args })
+      ->
+        assert_equal func (IRTree.Name label) ;
+        assert_equal args args_passed ;
+        assert_equal
+          static_link_formal
+          (IRTree.Mem
+             (IRTree.Binop
+                { left = IRTree.Const 0
+                ; right = IRTree.Temp Frame.MipsFrame.fp
+                ; op = IRTree.Plus
+                } ) )
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
 let suite =
   "Translate"
   >::: [ "extract_cond should return jump false label for const 0"
@@ -322,6 +375,8 @@ let suite =
        ; "test_while" >:: test_while
        ; "test_break" >:: test_break
        ; "test_for" >:: test_for
+       ; "test_function_call_regular" >:: test_function_call_regular
+       ; "test_function_call_recursive" >:: test_function_call_recursive
        ]
 
 
