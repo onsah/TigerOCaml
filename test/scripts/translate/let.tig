@@ -1,0 +1,5 @@
+let
+	var x := 13
+in 
+	x
+end

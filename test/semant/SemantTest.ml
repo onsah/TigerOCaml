@@ -1,6 +1,10 @@
 open OUnit2
 open Ir
 
+(*
+This module contains end to end code generation tests
+*)
+
 let test_break_outside_while _ =
   assert_raises
     (TigerError.TigerError.make_semant_error
@@ -42,10 +46,31 @@ let test_break_inside_while _ =
           false )
 
 
+let test_let _ =
+  let expr =
+    Result.get_ok @@ Main.analyze_file ~path:"../scripts/translate/let.tig"
+  in
+  ignore
+    ( match expr.translated_expr.translated_expr with
+    | Translate.Expr
+        (IRTree.ESeq
+          ( IRTree.Seq [ IRTree.Move { location = var_location; value } ]
+          , var_location' ) ) ->
+        assert_equal var_location var_location' ;
+        assert_equal value (Const 13)
+    | _ ->
+        assert_bool
+          (Printf.sprintf
+             "match failed, tried to match: %s"
+             (Translated.show_typedExpr expr) )
+          false )
+
+
 let suite =
   "SemantTest"
   >::: [ "test_break_outside_while" >:: test_break_outside_while
        ; "test_break_inside_while" >:: test_break_inside_while
+       ; "test_let" >:: test_let
        ]
 
 
