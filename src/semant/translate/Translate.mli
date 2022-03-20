@@ -79,3 +79,7 @@ val function_call :
   -> callee_level:level
   -> caller_level:level
   -> expr
+
+val init_variable : access_expr:expr -> expr:expr -> expr
+
+val let' : init_exprs:expr list -> body:expr -> expr

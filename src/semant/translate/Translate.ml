@@ -541,3 +541,16 @@ let function_call ~label ~args ~callee_level ~caller_level =
        { func = IRTree.Name label
        ; args = static_link :: List.map extract_expr args
        } )
+
+
+let init_variable ~access_expr ~expr =
+  NoValue
+    (IRTree.Move
+       { location = extract_expr access_expr; value = extract_expr expr } )
+
+
+let let' ~init_exprs ~body =
+  Expr
+    (IRTree.ESeq
+       ( IRTree.Seq (List.map (fun expr -> extract_no_result expr) init_exprs)
+       , extract_expr body ) )

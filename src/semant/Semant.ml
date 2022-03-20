@@ -305,10 +305,16 @@ let rec trans_expr
               (Types.show_ty body_ty)
           , body_pos )
   and handle_let_expr value_env type_env (decls, body) _pos =
-    let value_env, type_env, _ =
+    let value_env, type_env, init_exprs =
       trans_decls value_env type_env break_label current_level decls
     in
-    trans_expr (value_env, type_env, body, break_label) current_level
+    let { translated_expr = { translated_expr = body_expr; _ }; ty = let_ty } =
+      trans_expr (value_env, type_env, body, break_label) current_level
+    in
+    let let_expr = Translate.let' ~init_exprs ~body:body_expr in
+    { ty = let_ty
+    ; translated_expr = { translated_expr = let_expr; pos; debug = None }
+    }
   and handle_array_expr
       value_env type_env (typ_symbol, size_expr, init_expr) pos =
     let ty = actual_ty (check_look_ty (type_env, typ_symbol, pos)) in
@@ -526,7 +532,7 @@ and trans_var value_env type_env break_label current_level = function
       ( match value_entry with
       | VarEntry { ty; access } ->
           { translated_expr =
-              { translated_expr = Translate.dummy_expr
+              { translated_expr = Translate.simple_var (access, current_level)
               ; pos
               ; debug = Some (VarDebug access)
               }
@@ -632,6 +638,10 @@ and
         escape.contents ;
       let { ty = value_ty; translated_expr = { translated_expr; _ }; _ } =
         trans_expr (value_env, type_env, value, break_label) current_level
+      and access = Translate.alloc_local current_level escape.contents in
+      let access_expr = Translate.simple_var (access, current_level) in
+      let var_init_expr =
+        Translate.init_variable ~access_expr ~expr:translated_expr
       in
       ( match typ with
       | None ->
@@ -644,32 +654,18 @@ and
               , pos )
         | value_ty ->
             let value_env =
-              Symbol.enter
-                ( value_env
-                , name
-                , VarEntry
-                    { ty = value_ty
-                    ; access =
-                        Translate.alloc_local current_level escape.contents
-                    } )
+              Symbol.enter (value_env, name, VarEntry { ty = value_ty; access })
             in
-            (value_env, type_env, Some translated_expr) )
+            (value_env, type_env, Some var_init_expr) )
       | Some (Type { symbol; pos }) ->
           let decl_ty = check_look_ty (type_env, symbol, pos) in
           ( match assignment_type_checks decl_ty value_ty with
           | true ->
               (* Assigned value can be nil, therefore we use the declared type *)
               let value_env =
-                Symbol.enter
-                  ( value_env
-                  , name
-                  , VarEntry
-                      { ty = decl_ty
-                      ; access =
-                          Translate.alloc_local current_level escape.contents
-                      } )
+                Symbol.enter (value_env, name, VarEntry { ty = decl_ty; access })
               in
-              (value_env, type_env, Some translated_expr)
+              (value_env, type_env, Some var_init_expr)
           | false ->
               TigerError.semant_error
                 ( sprintf
