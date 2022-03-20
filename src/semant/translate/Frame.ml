@@ -19,6 +19,9 @@ module type Frame = sig
   (*Frame pointer*)
   val fp : Temp.temp
 
+  (* Return value register *)
+  val rv : Temp.temp
+
   val expr : access -> fp:IRTree.expr -> IRTree.expr
 
   type built_in_call =
@@ -52,6 +55,8 @@ module MipsFrame : Frame = struct
   let word_size = 4
 
   let fp = Temp.newtemp ()
+
+  let rv = Temp.newtemp ()
 
   let expr access ~fp =
     match access with
