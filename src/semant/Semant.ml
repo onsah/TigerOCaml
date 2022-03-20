@@ -305,7 +305,7 @@ let rec trans_expr
               (Types.show_ty body_ty)
           , body_pos )
   and handle_let_expr value_env type_env (decls, body) _pos =
-    let value_env, type_env =
+    let value_env, type_env, _ =
       trans_decls value_env type_env break_label current_level decls
     in
     trans_expr (value_env, type_env, body, break_label) current_level
@@ -590,33 +590,47 @@ and trans_var value_env type_env break_label current_level = function
             , pos ) )
 
 
-and trans_decls
+and
+    (* Returns the new env table, new type table and init expressions for the variable dedclarations *)
+    trans_decls
     (value_env : envEntry Symbol.table)
     (type_env : ty Symbol.table)
     (break_label : Symbol.symbol option)
     (current_level : Translate.level) :
-    decl list -> envEntry Symbol.table * ty Symbol.table = function
+    decl list -> envEntry Symbol.table * ty Symbol.table * Translate.expr list =
+  function
   | decl :: decls ->
-      let value_env, type_env =
+      let value_env, type_env, maybe_init_expr =
         trans_decl value_env type_env break_label current_level decl
       in
-      trans_decls value_env type_env break_label current_level decls
+      let value_env, type_env, init_expr_list =
+        trans_decls value_env type_env break_label current_level decls
+      in
+      ( value_env
+      , type_env
+      , Option.fold
+          ~none:init_expr_list
+          ~some:(fun init_expr -> init_expr :: init_expr_list)
+          maybe_init_expr )
   | [] ->
-      (value_env, type_env)
+      (value_env, type_env, [])
 
 
-and trans_decl
+and
+    (* Returns the new env table, new type table and init expression if it's variable declaration *)
+    trans_decl
     (value_env : envEntry Symbol.table)
     (type_env : ty Symbol.table)
     (break_label : Symbol.symbol option)
     (current_level : Translate.level) :
-    decl -> envEntry Symbol.table * ty Symbol.table = function
+    decl -> envEntry Symbol.table * ty Symbol.table * Translate.expr option =
+  function
   | VarDecl { name; typ; value; pos; escape } ->
       Printf.printf
         "Declaring %s, escape: %B\n"
         (Symbol.show_symbol name)
         escape.contents ;
-      let { ty = value_ty; _ } =
+      let { ty = value_ty; translated_expr = { translated_expr; _ }; _ } =
         trans_expr (value_env, type_env, value, break_label) current_level
       in
       ( match typ with
@@ -639,7 +653,7 @@ and trans_decl
                         Translate.alloc_local current_level escape.contents
                     } )
             in
-            (value_env, type_env) )
+            (value_env, type_env, Some translated_expr) )
       | Some (Type { symbol; pos }) ->
           let decl_ty = check_look_ty (type_env, symbol, pos) in
           ( match assignment_type_checks decl_ty value_ty with
@@ -655,7 +669,7 @@ and trans_decl
                           Translate.alloc_local current_level escape.contents
                       } )
               in
-              (value_env, type_env)
+              (value_env, type_env, Some translated_expr)
           | false ->
               TigerError.semant_error
                 ( sprintf
@@ -716,7 +730,7 @@ and trans_decl
             ()
       in
 
-      (value_env, type_env)
+      (value_env, type_env, None)
   | FunctionDecls func_decls ->
       let process_header (params, return_type_opt) =
         let param_tys =
@@ -836,7 +850,7 @@ and trans_decl
                   funcLevel )
           (List.combine func_decls_with_headers func_levels)
       in
-      (value_env, type_env)
+      (value_env, type_env, None)
 
 
 and trans_ty type_env = function
