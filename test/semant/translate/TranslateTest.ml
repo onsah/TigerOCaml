@@ -413,6 +413,42 @@ let test_seq _ =
         assert_bool "didn't match pattern" false )
 
 
+let test_if_no_else _ =
+  let cond = Translate.int 10
+  and then_body =
+    let callee_level =
+      Translate.new_level
+        ~parent:Translate.outermost
+        ~name:(Temp.newlabel ())
+        ~formals_escape:[ true ]
+    in
+    (* TODO: test function call *)
+    Translate.function_call
+      ~label:(Symbol.symbol "foo")
+      ~args:[]
+      ~callee_level
+      ~caller_level:Translate.outermost
+  in
+  let result = Translate.if_no_else ~cond ~then':then_body in
+  ignore
+    ( match result with
+    | Translate.Expr
+        (IRTree.ESeq
+          ( IRTree.Seq
+              [ IRTree.CondJump { true_label; false_label; _ }
+              ; IRTree.Label true_label'
+              ; body
+              ; IRTree.Label false_label'
+              ]
+          , result_expr ) ) ->
+        assert_equal true_label true_label' ;
+        assert_equal false_label false_label' ;
+        assert_equal body (Translate.extract_no_result then_body) ;
+        assert_equal result_expr IRTree.const_unit
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
 let suite =
   "Translate"
   >::: [ "extract_cond should return jump false label for const 0"
