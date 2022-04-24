@@ -93,6 +93,8 @@ val record_func_declaration : level:level -> body:expr -> unit
 
 val seq : exprs:expr list -> expr
 
+val assign : decl_expr:expr -> value_expr:expr -> expr
+
 (* END: Expression translaters *)
 
 val fragments : unit -> MyFrame.frag list

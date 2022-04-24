@@ -176,15 +176,19 @@ let rec trans_expr
         ; ty = (ListUtils.last_unsafe translated_exprs).ty
         }
   and handle_assign_expr value_env type_env var expr pos =
-    let { translated_expr = _; ty = var_ty } =
+    let { translated_expr = { translated_expr = decl_expr; _ }; ty = var_ty } =
       trans_var value_env type_env break_label current_level var
-    and { translated_expr = _; ty = expr_ty } =
+    and { translated_expr = { translated_expr = value_expr; _ }; ty = expr_ty }
+        =
       trans_expr (value_env, type_env, expr, break_label) current_level
     in
     match assignment_type_checks var_ty expr_ty with
     | true ->
         { translated_expr =
-            { translated_expr = Translate.dummy_expr; pos; debug = None }
+            { translated_expr = Translate.assign ~decl_expr ~value_expr
+            ; pos
+            ; debug = None
+            }
         ; ty = Types.Unit
         }
     | false ->

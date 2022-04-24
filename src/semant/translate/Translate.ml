@@ -578,6 +578,12 @@ let seq ~exprs =
       Expr (IRTree.ESeq (IRTree.Seq statements, extract_expr last_expr))
 
 
+let assign ~decl_expr ~value_expr =
+  NoValue
+    (IRTree.Move
+       { location = extract_expr decl_expr; value = extract_expr value_expr } )
+
+
 let record_func_declaration ~level ~body =
   let frame = level.frame
   and body = func_decl ~body in
