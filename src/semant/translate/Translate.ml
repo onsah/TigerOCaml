@@ -277,6 +277,22 @@ let if_else (cond_expr, then_expr, else_expr) =
       regular_if cond then' else'
 
 
+let if_no_else ~cond ~then' =
+  let cond = extract_cond cond
+  and then' = extract_expr then' in
+  let true_label = Temp.newlabel ()
+  and false_label = Temp.newlabel () in
+  Expr
+    (IRTree.ESeq
+       ( IRTree.Seq
+           [ cond { true_label; false_label }
+           ; IRTree.Label true_label
+           ; IRTree.Expr then'
+           ; IRTree.Label false_label
+           ]
+       , IRTree.const_unit ) )
+
+
 let int i = Expr (IRTree.Const i)
 
 let syntax_binop_to_relop binop =

@@ -54,6 +54,8 @@ val subscript : access * level * expr -> expr
 (* cond, then body, else body *)
 val if_else : expr * expr * expr -> expr
 
+val if_no_else : cond:expr -> then':expr -> expr
+
 val int : int -> expr
 
 val string : string -> expr
