@@ -37,4 +37,16 @@ module ListUtils = struct
 
   let last_unsafe list =
     match last list with Some i -> i | None -> failwith "last_unsafe empty"
+
+
+  let partition_last list =
+    let rec partition_last_impl passed = function
+      | [] ->
+          failwith "partition_last empty"
+      | [ x ] ->
+          (List.rev passed, x)
+      | x :: xs ->
+          partition_last_impl (x :: passed) xs
+    in
+    partition_last_impl [] list
 end

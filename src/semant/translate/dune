@@ -1,7 +1,7 @@
 (library
  (name translate)
  (modules Translate)
- (libraries symbol temp frame ir syntax types)
+ (libraries symbol temp frame ir syntax types utils)
  (preprocess
   (pps ppx_deriving.show)))
 

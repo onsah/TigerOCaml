@@ -382,6 +382,37 @@ let test_record_func_declaration _ =
         assert_bool "didn't match pattern" false )
 
 
+let test_seq _ =
+  let expr1 = Translate.int 5
+  and expr2 = Translate.array ~size:10 ~init_expr:(Translate.int 1)
+  and expr3 =
+    let callee_level =
+      Translate.new_level
+        ~parent:Translate.outermost
+        ~name:(Temp.newlabel ())
+        ~formals_escape:[ true ]
+    in
+    (* TODO: test function call *)
+    Translate.function_call
+      ~label:(Symbol.symbol "foo")
+      ~args:[]
+      ~callee_level
+      ~caller_level:Translate.outermost
+  in
+  let exprs = [ expr1; expr2; expr3 ] in
+  let result = Translate.seq ~exprs in
+  ignore
+    ( match result with
+    | Translate.Expr
+        (IRTree.ESeq
+          (IRTree.Seq [ IRTree.Expr expr1'; IRTree.Expr expr2' ], expr3') ) ->
+        assert_equal (Translate.extract_expr expr1) expr1' ;
+        assert_equal (Translate.extract_expr expr2) expr2' ;
+        assert_equal (Translate.extract_expr expr3) expr3'
+    | _ ->
+        assert_bool "didn't match pattern" false )
+
+
 let suite =
   "Translate"
   >::: [ "extract_cond should return jump false label for const 0"
@@ -400,6 +431,7 @@ let suite =
        ; "test_function_call_regular" >:: test_function_call_regular
        ; "test_function_call_recursive" >:: test_function_call_recursive
        ; "test_record_func_declaration" >:: test_record_func_declaration
+       ; "test_seq" >:: test_seq
        ]
 
 

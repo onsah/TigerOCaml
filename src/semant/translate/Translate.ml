@@ -1,3 +1,5 @@
+open Utils
+
 module MyFrame : Frame.Frame = Frame.MipsFrame
 
 module IRTree = Ir.IRTree
@@ -564,6 +566,16 @@ let func_decl ~body =
   NoValue
     (IRTree.Move
        { location = IRTree.Temp MyFrame.rv; value = extract_expr body } )
+
+
+let seq ~exprs =
+  match exprs with
+  | [] ->
+      failwith "Translate.seq empty"
+  | exprs ->
+      let other_exprs, last_expr = ListUtils.partition_last exprs in
+      let statements = List.map extract_no_result other_exprs in
+      Expr (IRTree.ESeq (IRTree.Seq statements, extract_expr last_expr))
 
 
 let record_func_declaration ~level ~body =

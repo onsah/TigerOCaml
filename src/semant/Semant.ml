@@ -147,20 +147,34 @@ let type_check_fields given_fields expected_fields record_name pos =
 let rec trans_expr
     (value_env, type_env, Syntax.Expr { expr; pos }, break_label) current_level
     =
-  let rec handle_seq_expr value_env type_env exprs pos =
+  let handle_seq_expr value_env type_env exprs pos =
     match exprs with
     | [] ->
-        { translated_expr =
-            { translated_expr = Translate.dummy_expr; pos; debug = None }
-        ; ty = Types.Unit
-        }
+        failwith "Empty seq expr"
     | [ expr ] ->
         trans_expr (value_env, type_env, expr, break_label) current_level
-    | expr :: exprs ->
-        let _ =
-          trans_expr (value_env, type_env, expr, break_label) current_level
+    | exprs ->
+        let translated_exprs =
+          List.map
+            (fun syntax_expr ->
+              trans_expr
+                (value_env, type_env, syntax_expr, break_label)
+                current_level )
+            exprs
         in
-        handle_seq_expr value_env type_env exprs pos
+        let translated_seq_expr =
+          Translate.seq
+            ~exprs:
+              (List.map
+                 (fun translated_expr ->
+                   translated_expr.translated_expr.translated_expr )
+                 translated_exprs )
+        in
+        { translated_expr =
+            { translated_expr = translated_seq_expr; pos; debug = None }
+            (* Safe because applied to non-empty list*)
+        ; ty = (ListUtils.last_unsafe translated_exprs).ty
+        }
   and handle_assign_expr value_env type_env var expr pos =
     let { translated_expr = _; ty = var_ty } =
       trans_var value_env type_env break_label current_level var

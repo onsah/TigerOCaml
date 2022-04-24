@@ -44,6 +44,8 @@ val extract_no_result : expr -> IRTree.stmt
 
 val extract_cond : expr -> cond_args -> IRTree.stmt
 
+(* BEGIN: Expression translaters *)
+
 val simple_var : access * level -> expr
 
 (* array access, access level, offset access *)
@@ -88,5 +90,9 @@ val let' : init_exprs:expr list -> body:expr -> expr
 
 (*procEntryExit in the book*)
 val record_func_declaration : level:level -> body:expr -> unit
+
+val seq : exprs:expr list -> expr
+
+(* END: Expression translaters *)
 
 val fragments : unit -> MyFrame.frag list
