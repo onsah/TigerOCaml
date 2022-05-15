@@ -245,7 +245,8 @@ let rec trans_expr
         (* TODO: More descriptive error message *)
         let _ = expecting_ty Types.Unit then_ty pos in
         { translated_expr =
-            { translated_expr = Translate.dummy_expr
+            { translated_expr =
+                Translate.if_no_else ~cond:cond_expr ~then':then_expr
             ; pos = if_pos
             ; debug = None
             }
