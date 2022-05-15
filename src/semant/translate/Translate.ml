@@ -16,7 +16,9 @@ let my_frags : MyFrame.frag list ref = ref []
 
 let outermost =
   { parent = None
-  ; frame = MyFrame.new_frame ~name:(Temp.newlabel ()) ~formals:[]
+  ; frame =
+      MyFrame.new_frame ~name:(Temp.newlabel ()) ~formals:[ true ]
+      (* static link *)
   }
 
 
